@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
-import { decideRoute } from "../../packages/memory-core/src/policy.js";
-import { executeRoute, ROUTE_C, ROUTE_D } from "../../packages/execution-simulator/src/index.js";
+import { decideRoute, ROUTE_C, ROUTE_D } from "../../packages/memory-core/src/policy.js";
+import { executeRoute } from "../../packages/execution-simulator/src/index.js";
 import type { OperationalMemory } from "../../packages/memory-core/src/domain.js";
 
 const thinLiquidity = {
@@ -11,7 +11,6 @@ const thinLiquidity = {
 
 describe("Engram memory-caused behavioral change", () => {
   it("changes Route C to Route D when a prior comparable failure is recalled", () => {
-    // CONTROL: no relevant memory.
     const controlDecision = decideRoute({ memories: [], memoryAvailable: true });
     expect(controlDecision.route).toEqual(ROUTE_C);
 
@@ -19,7 +18,6 @@ describe("Engram memory-caused behavioral change", () => {
     expect(runOne.status).toBe("COMPENSATED");
     expect(runOne.failedVenue).toBe("C");
 
-    // Operational memory derived from Run One's simulated evidence.
     const memory: OperationalMemory = {
       id: randomUUID(),
       agentId: "agent-demo",
@@ -32,20 +30,12 @@ describe("Engram memory-caused behavioral change", () => {
         outcome: "COMPENSATED",
       },
       confidence: 0.91,
+      evidenceState: "SIMULATED",
     };
 
-    // TREATMENT: same context, prior memory available.
     const treatmentDecision = decideRoute({
       memoryAvailable: true,
-      memories: [
-        {
-          memory,
-          semanticScore: 0.95,
-          contextScore: 1,
-          outcomeScore: 1,
-          recencyScore: 1,
-        },
-      ],
+      memories: [{ memory, semanticScore: 0.95, contextScore: 1, outcomeScore: 1, recencyScore: 1 }],
     });
 
     expect(treatmentDecision.route).toEqual(ROUTE_D);

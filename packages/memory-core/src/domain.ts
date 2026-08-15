@@ -64,6 +64,7 @@ export const OperationalMemorySchema = z.object({
   summary: z.string().min(1),
   structuredContext: z.record(z.string(), z.unknown()),
   confidence: z.number().min(0).max(1),
+  evidenceState: EvidenceStateSchema,
   validFrom: z.coerce.date().optional(),
   validUntil: z.coerce.date().optional(),
   environmentVersion: z.string().optional(),
@@ -79,10 +80,19 @@ export const RetrievalCandidateSchema = z.object({
   outcomeScore: z.number().min(0).max(1),
   confidenceScore: z.number().min(0).max(1),
   recencyScore: z.number().min(0).max(1),
-  finalScore: z.number(),
+  finalScore: z.number().min(0).max(1),
   rank: z.number().int().positive(),
 });
 export type RetrievalCandidate = z.infer<typeof RetrievalCandidateSchema>;
+
+export const DecisionMemoryInfluenceSchema = z.object({
+  memoryId: z.string().uuid(),
+  influenceType: z.enum(["CHANGED_ACTION", "CONSTRAINED_ACTION", "SUPPORTED_ACTION", "CONSIDERED"]),
+  influenceSummary: z.string().min(1),
+  relevance: z.number().min(0).max(1).optional(),
+  counterfactualAction: z.record(z.string(), z.unknown()).optional(),
+});
+export type DecisionMemoryInfluence = z.infer<typeof DecisionMemoryInfluenceSchema>;
 
 export const DecisionSchema = z.object({
   id: z.string().uuid(),
@@ -92,15 +102,18 @@ export const DecisionSchema = z.object({
   alternatives: z.array(z.record(z.string(), z.unknown())).default([]),
   reasoningSummary: z.string().min(1),
   memoryRefs: z.array(z.string().uuid()).default([]),
+  memoryInfluences: z.array(DecisionMemoryInfluenceSchema).default([]),
 });
 export type Decision = z.infer<typeof DecisionSchema>;
 
 export type MemorySearchInput = {
   agentId: string;
+  executionId?: string;
   query: string;
   workflowType?: string;
   status?: ExecutionStatus[];
   environmentVersion?: string;
+  retrievalPolicyVersion?: string;
   limit?: number;
 };
 
@@ -108,6 +121,11 @@ export type MemorySearchResult = {
   retrievalId: string;
   candidates: Array<RetrievalCandidate & { memory: OperationalMemory }>;
 };
+
+export interface EmbeddingProvider {
+  readonly dimensions: number;
+  embed(text: string): Promise<number[]>;
+}
 
 export interface MemoryRepository {
   startExecution(input: ExecutionContext): Promise<{ executionId: string }>;

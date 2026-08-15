@@ -1,5 +1,8 @@
 import type { OperationalMemory } from "./domain.js";
-import { ROUTE_C, ROUTE_D, type Route } from "../../execution-simulator/src/index.js";
+
+export type Route = readonly ["A", "B", "C" | "D"];
+export const ROUTE_C: Route = ["A", "B", "C"];
+export const ROUTE_D: Route = ["A", "B", "D"];
 
 export type RankedMemory = {
   memory: OperationalMemory;
@@ -31,11 +34,6 @@ export function scoreMemory(candidate: RankedMemory): number {
   );
 }
 
-/**
- * Deliberately deterministic MVP decision policy.
- * Bedrock may later synthesize the reasoning summary, but memory-caused route
- * selection remains testable and is not hidden inside an opaque model prompt.
- */
 export function decideRoute(input: DecisionPolicyInput): RouteDecision {
   if (!input.memoryAvailable) {
     return {
@@ -50,11 +48,7 @@ export function decideRoute(input: DecisionPolicyInput): RouteDecision {
     .map((candidate) => ({ candidate, score: scoreMemory(candidate) }))
     .filter(({ candidate, score }) => {
       const context = candidate.memory.structuredContext;
-      return (
-        score >= 0.65 &&
-        context.failureType === "LIQUIDITY_UNAVAILABLE" &&
-        context.failedVenue === "C"
-      );
+      return score >= 0.65 && context.failureType === "LIQUIDITY_UNAVAILABLE" && context.failedVenue === "C";
     })
     .sort((a, b) => b.score - a.score);
 

@@ -24,8 +24,7 @@ CREATE TABLE IF NOT EXISTS executions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS executions_agent_workflow_idx
-  ON executions (agent_id, workflow_type, started_at DESC);
+CREATE INDEX IF NOT EXISTS executions_agent_workflow_idx ON executions (agent_id, workflow_type, started_at DESC);
 
 CREATE TABLE IF NOT EXISTS execution_events (
   id UUID PRIMARY KEY,
@@ -67,6 +66,7 @@ CREATE TABLE IF NOT EXISTS memories (
   summary STRING NOT NULL,
   structured_context JSONB NOT NULL,
   confidence FLOAT8 NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
+  evidence_state STRING NOT NULL CHECK (evidence_state IN ('VERIFIED','OBSERVED','SIMULATED','INFERRED','PROPOSED','UNKNOWN')),
   embedding VECTOR(1024),
   valid_from TIMESTAMPTZ,
   valid_until TIMESTAMPTZ,
@@ -76,11 +76,8 @@ CREATE TABLE IF NOT EXISTS memories (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS memories_agent_created_idx
-  ON memories (agent_id, created_at DESC);
-
-CREATE VECTOR INDEX IF NOT EXISTS memories_embedding_idx
-  ON memories (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS memories_agent_created_idx ON memories (agent_id, created_at DESC);
+CREATE VECTOR INDEX IF NOT EXISTS memories_embedding_idx ON memories (embedding);
 
 CREATE TABLE IF NOT EXISTS memory_sources (
   memory_id UUID NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
