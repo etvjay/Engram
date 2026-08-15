@@ -1,6 +1,12 @@
 import type { OperationalMemory, Outcome } from "./domain.js";
-import type { SimulationResult } from "../../execution-simulator/src/index.js";
 import { randomUUID } from "node:crypto";
+
+export type FailureRecoveryObservation = {
+  failedResource?: string;
+  failureType?: string;
+  recoveryStrategy?: string;
+  recoverySucceeded?: boolean;
+};
 
 export type AdmissionInput = {
   agentId: string;
@@ -10,37 +16,36 @@ export type AdmissionInput = {
   toolVersion?: string;
   policyVersion?: string;
   outcome: Outcome;
-  simulation: SimulationResult;
+  observation: FailureRecoveryObservation;
 };
 
+/**
+ * Memory admission operates only on core operational semantics. Demo/runtime
+ * adapters translate their own result shapes into FailureRecoveryObservation.
+ */
 export function admitOperationalMemory(input: AdmissionInput): OperationalMemory | null {
-  const { outcome, simulation } = input;
-
-  const notable =
-    outcome.status === "COMPENSATED" ||
-    outcome.status === "FAILURE" ||
-    outcome.status === "PARTIAL" ||
-    outcome.status === "ABORTED" ||
-    outcome.status === "UNKNOWN";
+  const { outcome, observation } = input;
+  const notable = ["COMPENSATED", "FAILURE", "PARTIAL", "ABORTED", "UNKNOWN"].includes(outcome.status);
 
   if (!notable) return null;
-  if (!simulation.failedVenue || outcome.failureType !== "LIQUIDITY_UNAVAILABLE") return null;
+  if (!observation.failedResource || !observation.failureType) return null;
 
   return {
     id: randomUUID(),
     agentId: input.agentId,
     memoryType: "OPERATIONAL_LESSON",
-    summary: `Venue ${simulation.failedVenue} failed under insufficient liquidity; avoid it under comparable conditions or revalidate liquidity before prior commitments.`,
+    summary: `${observation.failedResource} failed with ${observation.failureType}; avoid the same dependency under comparable conditions or revalidate it before committing preceding actions.`,
     structuredContext: {
       workflowType: input.workflowType,
       sourceExecutionId: input.executionId,
-      failureType: outcome.failureType,
-      failedVenue: simulation.failedVenue,
+      failureType: observation.failureType,
+      failedResource: observation.failedResource,
+      failedVenue: observation.failedResource,
       outcome: outcome.status,
-      recoveryStrategy: simulation.recovery?.strategy,
-      capitalRecovered: simulation.recovery?.capitalRecovered ?? false,
+      recoveryStrategy: observation.recoveryStrategy,
+      recoverySucceeded: observation.recoverySucceeded ?? false,
     },
-    confidence: outcome.status === "COMPENSATED" ? 0.91 : 0.82,
+    confidence: outcome.status === "COMPENSATED" && observation.recoverySucceeded ? 0.91 : 0.82,
     evidenceState: outcome.evidenceState,
     environmentVersion: input.environmentVersion,
     toolVersion: input.toolVersion,
