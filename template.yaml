@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Engram - durable operational memory API
+
+Parameters:
+  DatabaseUrl:
+    Type: String
+    NoEcho: true
+    Description: CockroachDB Cloud PostgreSQL-compatible connection string.
+  CorsOrigin:
+    Type: String
+    Default: '*'
+  BedrockEmbeddingModel:
+    Type: String
+    Default: amazon.titan-embed-text-v2:0
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures:
+      - arm64
+    MemorySize: 512
+    Timeout: 30
+    Environment:
+      Variables:
+        DATABASE_URL: !Ref DatabaseUrl
+        CORS_ORIGIN: !Ref CorsOrigin
+        BEDROCK_EMBEDDING_MODEL: !Ref BedrockEmbeddingModel
+        NODE_OPTIONS: --enable-source-maps
+
+Resources:
+  EngramApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref CorsOrigin
+        AllowHeaders:
+          - content-type
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+
+  EngramFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: services/api/src/handler.handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${BedrockEmbeddingModel}
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EngramApi
+            Path: /health
+            Method: GET
+        RunDemo:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EngramApi
+            Path: /v1/demo/run
+            Method: POST
+        SearchMemory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EngramApi
+            Path: /v1/memory/search
+            Method: POST
+        ExecutionTrace:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EngramApi
+            Path: /v1/executions/{id}/trace
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - services/api/src/handler.ts
+        Format: esm
+        Minify: true
+        Sourcemap: true
+        Target: es2022
+        OutExtension:
+          - .js=.mjs
+
+Outputs:
+  ApiUrl:
+    Description: Public Engram HTTP API URL.
+    Value: !Sub https://${EngramApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
