@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
 import { CockroachMemoryRepository } from "../../../packages/cockroach/src/repository.js";
 import { TitanEmbeddingProvider } from "../../../packages/bedrock/src/embeddings.js";
+import { getCockroachMcpStatus } from "../../../packages/cockroach-mcp/src/client.js";
 import { runEngramDemo } from "../../demo/src/run-demo.js";
 
 export type ApiGatewayV2Event = {
@@ -21,9 +22,7 @@ export type ApiGatewayV2Response = {
 let repository: CockroachMemoryRepository | undefined;
 
 function getRepository(): CockroachMemoryRepository {
-  if (!repository) {
-    repository = new CockroachMemoryRepository(createCockroachPool(), new TitanEmbeddingProvider());
-  }
+  if (!repository) repository = new CockroachMemoryRepository(createCockroachPool(), new TitanEmbeddingProvider());
   return repository;
 }
 
@@ -60,38 +59,37 @@ export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Res
 
   try {
     if (method === "GET" && path === "/health") {
-      return response(200, { service: "engram-api", status: "ok" });
+      return response(200, {
+        service: "engram-api",
+        status: "ok",
+        evidenceBoundary: { externalExecution: "SIMULATED", persistence: "REAL", retrieval: "REAL", decisionTrace: "REAL" },
+      });
+    }
+
+    if (method === "GET" && path === "/v1/mcp/status") {
+      return response(200, await getCockroachMcpStatus());
     }
 
     if (method === "POST" && path === "/v1/demo/run") {
-      const result = await runEngramDemo(getRepository());
-      return response(200, result);
+      return response(200, await runEngramDemo(getRepository()));
     }
 
     if (method === "POST" && path === "/v1/memory/search") {
       const input = SearchSchema.parse(parseJsonBody(event));
-      const result = await getRepository().searchMemory(input);
-      return response(200, result);
+      return response(200, await getRepository().searchMemory(input));
     }
 
     const traceMatch = path.match(/^\/v1\/executions\/([0-9a-fA-F-]{36})\/trace$/);
     if (method === "GET" && traceMatch?.[1]) {
       const executionId = z.string().uuid().parse(traceMatch[1]);
-      const result = await getRepository().getTrace(executionId);
-      return response(200, result);
+      return response(200, await getRepository().getTrace(executionId));
     }
 
     return response(404, { error: "NOT_FOUND", method, path });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return response(400, { error: "INVALID_REQUEST", details: error.issues });
-    }
-
+    if (error instanceof z.ZodError) return response(400, { error: "INVALID_REQUEST", details: error.issues });
     const message = error instanceof Error ? error.message : "Unknown error";
     const memoryUnavailable = message.includes("DATABASE_URL") || message.includes("Bedrock") || message.includes("embedding");
-    return response(503, {
-      error: memoryUnavailable ? "MEMORY_UNAVAILABLE" : "SERVICE_UNAVAILABLE",
-      message,
-    });
+    return response(503, { error: memoryUnavailable ? "MEMORY_UNAVAILABLE" : "SERVICE_UNAVAILABLE", message });
   }
 }
