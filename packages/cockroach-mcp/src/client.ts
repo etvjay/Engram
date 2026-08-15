@@ -16,6 +16,7 @@ export type CockroachMcpConfig = {
   url: string;
   clusterId: string;
   apiKey?: string;
+  database?: string;
 };
 
 export type CockroachMcpStatus = {
@@ -23,6 +24,7 @@ export type CockroachMcpStatus = {
   connected: boolean;
   serverUrl: string;
   clusterId?: string;
+  database?: string;
   availableTools: string[];
   readTools: string[];
   missingExpectedTools: string[];
@@ -36,6 +38,7 @@ export function getCockroachMcpConfig(): CockroachMcpConfig | null {
     url: process.env.COCKROACH_MCP_URL?.trim() || DEFAULT_MCP_URL,
     clusterId,
     apiKey: process.env.COCKROACH_MCP_API_KEY?.trim() || undefined,
+    database: process.env.COCKROACH_MCP_DATABASE?.trim() || undefined,
   };
 }
 
@@ -46,6 +49,26 @@ function withCockroachHeaders(config: CockroachMcpConfig): typeof fetch {
     if (config.apiKey) headers.set("authorization", `Bearer ${config.apiKey}`);
     return fetch(input, { ...init, headers });
   };
+}
+
+function buildArgsFromSchema(
+  inputSchema: unknown,
+  values: { sql?: string; database?: string; table?: string },
+): Record<string, unknown> {
+  const schema = inputSchema as { properties?: Record<string, unknown>; required?: string[] };
+  const keys = Object.keys(schema.properties ?? {});
+  const args: Record<string, unknown> = {};
+
+  for (const key of keys) {
+    const normalized = key.toLowerCase().replace(/[_-]/g, "");
+    if ((normalized === "query" || normalized === "sql" || normalized === "statement") && values.sql) args[key] = values.sql;
+    if ((normalized === "database" || normalized === "databasename" || normalized === "dbname") && values.database) args[key] = values.database;
+    if ((normalized === "table" || normalized === "tablename") && values.table) args[key] = values.table;
+  }
+
+  const unresolved = (schema.required ?? []).filter((key) => args[key] === undefined);
+  if (unresolved.length) throw new Error(`Unable to map required MCP tool arguments: ${unresolved.join(", ")}`);
+  return args;
 }
 
 export class CockroachManagedMcpClient {
@@ -81,6 +104,7 @@ export class CockroachManagedMcpClient {
       connected: true,
       serverUrl: this.config.url,
       clusterId: this.config.clusterId,
+      database: this.config.database,
       availableTools,
       readTools,
       missingExpectedTools: expected.filter((name) => !availableTools.includes(name)),
@@ -88,15 +112,40 @@ export class CockroachManagedMcpClient {
   }
 
   async callReadTool(name: string, args: Record<string, unknown>): Promise<unknown> {
-    if (!READ_TOOL_ALLOWLIST.has(name)) {
-      throw new Error(`MCP tool ${name} is not permitted by Engram's read-only MCP policy`);
-    }
+    if (!READ_TOOL_ALLOWLIST.has(name)) throw new Error(`MCP tool ${name} is not permitted by Engram's read-only MCP policy`);
     await this.connect();
     const tools = await this.client.listTools();
-    if (!tools.tools.some((tool) => tool.name === name)) {
-      throw new Error(`MCP tool ${name} is not exposed by the connected CockroachDB server`);
-    }
+    if (!tools.tools.some((tool) => tool.name === name)) throw new Error(`MCP tool ${name} is not exposed by the connected CockroachDB server`);
     return this.client.callTool({ name, arguments: args });
+  }
+
+  async inspectMemoryProvenance(memoryId: string): Promise<unknown> {
+    if (!/^[0-9a-fA-F-]{36}$/.test(memoryId)) throw new Error("memoryId must be a UUID");
+    await this.connect();
+    const tools = await this.client.listTools();
+    const tool = tools.tools.find((candidate) => candidate.name === "select_query");
+    if (!tool) throw new Error("CockroachDB Managed MCP select_query tool is unavailable");
+
+    const sql = `
+      SELECT
+        m.id AS memory_id,
+        m.summary AS memory_summary,
+        ms.execution_id AS source_execution_id,
+        d.id AS influenced_decision_id,
+        dm.influence_type,
+        dm.influence_summary,
+        dm.relevance
+      FROM memories AS m
+      JOIN memory_sources AS ms ON ms.memory_id = m.id
+      LEFT JOIN decision_memories AS dm ON dm.memory_id = m.id
+      LEFT JOIN decisions AS d ON d.id = dm.decision_id
+      WHERE m.id = '${memoryId}'::UUID
+      ORDER BY d.created_at ASC
+      LIMIT 25
+    `;
+
+    const args = buildArgsFromSchema(tool.inputSchema, { sql, database: this.config.database });
+    return this.client.callTool({ name: "select_query", arguments: args });
   }
 }
 
@@ -116,6 +165,17 @@ export async function getCockroachMcpStatus(): Promise<CockroachMcpStatus> {
   const client = new CockroachManagedMcpClient(config);
   try {
     return await client.status();
+  } finally {
+    await client.close();
+  }
+}
+
+export async function inspectMemoryProvenanceViaMcp(memoryId: string): Promise<unknown> {
+  const config = getCockroachMcpConfig();
+  if (!config) throw new Error("CockroachDB Managed MCP is not configured");
+  const client = new CockroachManagedMcpClient(config);
+  try {
+    return await client.inspectMemoryProvenance(memoryId);
   } finally {
     await client.close();
   }
