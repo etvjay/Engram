@@ -14,7 +14,8 @@ const suite = live ? describe : describe.skip;
 class DeterministicEmbeddingProvider implements EmbeddingProvider {
   readonly dimensions = 1024;
   async embed(text: string): Promise<number[]> {
-    const vector = Array.from({ length: 1024 }, (_, index) => ((text.charCodeAt(index % Math.max(text.length, 1)) || 1) % 97) / 97);
+    const safeText = text || "engram";
+    const vector = Array.from({ length: 1024 }, (_, index) => ((safeText.charCodeAt(index % safeText.length) || 1) % 97) / 97);
     const norm = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0));
     return vector.map((value) => value / norm);
   }
@@ -69,7 +70,12 @@ suite("Engram CockroachDB persisted memory loop", () => {
       environmentVersion: "demo-v1",
       policyVersion: "route-policy-v1",
       outcome: outcomeA,
-      simulation: resultA,
+      observation: {
+        failedResource: resultA.failedVenue,
+        failureType: outcomeA.failureType,
+        recoveryStrategy: resultA.recovery?.strategy,
+        recoverySucceeded: resultA.recovery?.capitalRecovered ?? false,
+      },
     });
     expect(memory).not.toBeNull();
     await repo.persistMemory(memory!, [runA.executionId]);
