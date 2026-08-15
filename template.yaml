@@ -22,6 +22,10 @@ Parameters:
     NoEcho: true
     Default: ''
     Description: Optional service-account API key for non-interactive Managed MCP access.
+  CockroachMcpDatabase:
+    Type: String
+    Default: defaultdb
+    Description: Database name used by MCP read/introspection tools.
 
 Globals:
   Function:
@@ -38,6 +42,7 @@ Globals:
         COCKROACH_MCP_URL: https://cockroachlabs.cloud/mcp
         COCKROACH_MCP_CLUSTER_ID: !Ref CockroachMcpClusterId
         COCKROACH_MCP_API_KEY: !Ref CockroachMcpApiKey
+        COCKROACH_MCP_DATABASE: !Ref CockroachMcpDatabase
         NODE_OPTIONS: --enable-source-maps
 
 Resources:
@@ -77,6 +82,12 @@ Resources:
           Properties:
             ApiId: !Ref EngramApi
             Path: /v1/mcp/status
+            Method: GET
+        McpMemoryProvenance:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EngramApi
+            Path: /v1/mcp/memories/{id}/provenance
             Method: GET
         RunDemo:
           Type: HttpApi
