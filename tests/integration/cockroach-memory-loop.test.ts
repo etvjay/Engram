@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import type pg from "pg";
 import { createCockroachPool } from "../../packages/cockroach/src/client.js";
 import { CockroachMemoryRepository } from "../../packages/cockroach/src/repository.js";
 import { admitOperationalMemory } from "../../packages/memory-core/src/admission.js";
@@ -22,18 +23,20 @@ class DeterministicEmbeddingProvider implements EmbeddingProvider {
 }
 
 suite("Engram CockroachDB persisted memory loop", () => {
-  const pool = createCockroachPool();
-  const repo = new CockroachMemoryRepository(pool, new DeterministicEmbeddingProvider());
+  let pool: pg.Pool;
+  let repo: CockroachMemoryRepository;
   const agentId = `agent-e2e-${randomUUID()}`;
   const context = { liquidity: { A: 100, B: 100, C: 20, D: 100 }, requiredLiquidity: 50 };
 
   beforeAll(async () => {
+    pool = createCockroachPool();
+    repo = new CockroachMemoryRepository(pool, new DeterministicEmbeddingProvider());
     const migration = await readFile(new URL("../../db/migrations/001_initial.sql", import.meta.url), "utf8");
     await pool.query(migration);
   });
 
   afterAll(async () => {
-    await pool.end();
+    await pool?.end();
   });
 
   it("persists Run A memory and uses it to change Run B", async () => {
