@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
 import { CockroachMemoryRepository } from "../../../packages/cockroach/src/repository.js";
 import { TitanEmbeddingProvider } from "../../../packages/bedrock/src/embeddings.js";
-import { getCockroachMcpStatus } from "../../../packages/cockroach-mcp/src/client.js";
+import { getCockroachMcpStatus, inspectMemoryProvenanceViaMcp } from "../../../packages/cockroach-mcp/src/client.js";
 import { runEngramDemo } from "../../demo/src/run-demo.js";
 
 export type ApiGatewayV2Event = {
@@ -70,6 +70,17 @@ export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Res
       return response(200, await getCockroachMcpStatus());
     }
 
+    const mcpMemoryMatch = path.match(/^\/v1\/mcp\/memories\/([0-9a-fA-F-]{36})\/provenance$/);
+    if (method === "GET" && mcpMemoryMatch?.[1]) {
+      const memoryId = z.string().uuid().parse(mcpMemoryMatch[1]);
+      return response(200, {
+        source: "COCKROACHDB_CLOUD_MANAGED_MCP",
+        access: "READ_ONLY",
+        memoryId,
+        result: await inspectMemoryProvenanceViaMcp(memoryId),
+      });
+    }
+
     if (method === "POST" && path === "/v1/demo/run") {
       return response(200, await runEngramDemo(getRepository()));
     }
@@ -89,7 +100,7 @@ export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Res
   } catch (error) {
     if (error instanceof z.ZodError) return response(400, { error: "INVALID_REQUEST", details: error.issues });
     const message = error instanceof Error ? error.message : "Unknown error";
-    const memoryUnavailable = message.includes("DATABASE_URL") || message.includes("Bedrock") || message.includes("embedding");
+    const memoryUnavailable = message.includes("DATABASE_URL") || message.includes("Bedrock") || message.includes("embedding") || message.includes("MCP");
     return response(503, { error: memoryUnavailable ? "MEMORY_UNAVAILABLE" : "SERVICE_UNAVAILABLE", message });
   }
 }
