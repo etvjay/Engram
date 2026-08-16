@@ -9,7 +9,7 @@ import { AtomicCockroachRuntimeStore } from "../../../packages/cockroach/src/ato
 import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
 import { applyEngramMigrations } from "../../../packages/cockroach/src/migrations.js";
 import { CockroachMemoryRepository } from "../../../packages/cockroach/src/repository.js";
-import { explainEngramMemorySearch } from "../../../packages/cockroach/src/vector-plan.js";
+import { ENGRAM_COSINE_VECTOR_INDEX, explainEngramMemorySearch } from "../../../packages/cockroach/src/vector-plan.js";
 import { EngramRuntime } from "../../../packages/runtime/src/runtime.js";
 import { DEMO_RUNTIME_POLICIES } from "../../demo/src/runtime-policy.js";
 import { runEngramRuntimeDemo } from "../../demo/src/run-runtime-demo.js";
@@ -126,11 +126,11 @@ async function main() {
         managedMcpProvenanceQuery: "VERIFIED",
       },
       vectorIndex: {
-        expectedIndex: "memories_embedding_cosine_idx",
+        expectedIndex: ENGRAM_COSINE_VECTOR_INDEX,
         naturalPlan: true,
         ...vectorPlan,
         note: cspannIndexUsage === "VERIFIED"
-          ? "CockroachDB naturally selected the cosine vector index for the Engram retrieval query shape."
+          ? "CockroachDB naturally selected the agent-scoped cosine vector index for the Engram retrieval query shape."
           : "The query succeeded, but the natural optimizer plan did not prove cosine C-SPANN index use; do not promote ENG-003 from this artifact.",
       },
       invariant: {
