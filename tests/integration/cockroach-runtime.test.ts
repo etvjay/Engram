@@ -61,7 +61,7 @@ suite("Cockroach-backed Engram runtime", () => {
     );
   });
 
-  it("reloads an exposed recall after a cold start and persists influence provenance", async () => {
+  it("reloads recalls after cold starts and preserves distinct retrieval-to-decision linkage", async () => {
     const agentId = `runtime-agent-${randomUUID()}`;
     const source = await repository.startExecution({
       agentId,
@@ -115,12 +115,12 @@ suite("Cockroach-backed Engram runtime", () => {
       policyVersion: "agent-policy-v1",
     });
 
-    const recall = await firstInvocation.recall({
+    const firstRecall = await firstInvocation.recall({
       executionId: current.executionId,
       query: "production deployment dependency failures",
       status: ["FAILURE", "COMPENSATED", "PARTIAL"],
     });
-    expect(recall.recall.candidates.some((candidate) => candidate.memoryId === memory.id)).toBe(true);
+    expect(firstRecall.recall.candidates.some((candidate) => candidate.memoryId === memory.id)).toBe(true);
 
     const secondInvocation = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
     await secondInvocation.recordDecision({
@@ -131,10 +131,10 @@ suite("Cockroach-backed Engram runtime", () => {
       reasoningSummary: "Prior execution memory changed the selected dependency.",
       influences: [{
         memoryId: memory.id,
-        retrievalId: recall.recall.id,
+        retrievalId: firstRecall.recall.id,
         influenceType: "CHANGED_ACTION",
         summary: "Comparable dependency failure caused alpha to be replaced by beta.",
-        relevance: recall.candidates.find((candidate) => candidate.memory.id === memory.id)?.score,
+        relevance: firstRecall.candidates.find((candidate) => candidate.memory.id === memory.id)?.score,
         counterfactual: {
           action: { dependency: "alpha" },
           source: "APPLICATION_DECLARED",
@@ -144,17 +144,68 @@ suite("Cockroach-backed Engram runtime", () => {
       }],
     });
 
+    const secondRecall = await secondInvocation.recall({
+      executionId: current.executionId,
+      query: "dependency alpha production failure history",
+      status: ["FAILURE", "COMPENSATED", "PARTIAL"],
+    });
+    expect(secondRecall.recall.id).not.toBe(firstRecall.recall.id);
+    expect(secondRecall.recall.candidates.some((candidate) => candidate.memoryId === memory.id)).toBe(true);
+
+    const thirdInvocation = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
+    await thirdInvocation.recordDecision({
+      executionId: current.executionId,
+      decisionType: "RETRY_POLICY",
+      selectedAction: { retry: false },
+      alternatives: [{ retry: true }],
+      reasoningSummary: "The same prior failure supports keeping retries disabled for alpha.",
+      influences: [{
+        memoryId: memory.id,
+        retrievalId: secondRecall.recall.id,
+        influenceType: "SUPPORTED_ACTION",
+        summary: "The recalled failure supports the existing no-retry policy.",
+        relevance: secondRecall.candidates.find((candidate) => candidate.memory.id === memory.id)?.score,
+      }],
+    });
+
     const persistedRecalls = await store.getRecalls(current.executionId);
-    expect(persistedRecalls[0]?.candidates.some((candidate) => candidate.memoryId === memory.id)).toBe(true);
+    expect(persistedRecalls.map((recall) => recall.id)).toEqual(expect.arrayContaining([
+      firstRecall.recall.id,
+      secondRecall.recall.id,
+    ]));
 
     const runtimeStore: EngramRuntimeStore = store;
     const trace = await runtimeStore.getTrace(current.executionId) as {
-      decisions: Array<{ memory_influences: Array<Record<string, unknown>> }>;
-      retrievals: Array<Record<string, unknown>>;
+      decisions: Array<{
+        id: string;
+        decision_type: string;
+        memory_influences: Array<{ retrieval_id?: string; memory_id?: string; influence_type?: string }>;
+      }>;
+      retrievals: Array<{ id: string }>;
       runtimeEvaluations?: Array<Record<string, unknown>>;
     };
-    expect(trace.retrievals).toHaveLength(1);
-    expect(trace.decisions).toHaveLength(1);
-    expect(trace.decisions[0]?.memory_influences).toHaveLength(1);
+
+    expect(trace.retrievals).toHaveLength(2);
+    expect(new Set(trace.retrievals.map((retrieval) => retrieval.id))).toEqual(
+      new Set([firstRecall.recall.id, secondRecall.recall.id]),
+    );
+    expect(trace.decisions).toHaveLength(2);
+
+    const dependencyDecision = trace.decisions.find((decision) => decision.decision_type === "DEPENDENCY_SELECTION");
+    const retryDecision = trace.decisions.find((decision) => decision.decision_type === "RETRY_POLICY");
+    expect(dependencyDecision?.memory_influences).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        retrieval_id: firstRecall.recall.id,
+        memory_id: memory.id,
+        influence_type: "CHANGED_ACTION",
+      }),
+    ]));
+    expect(retryDecision?.memory_influences).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        retrieval_id: secondRecall.recall.id,
+        memory_id: memory.id,
+        influence_type: "SUPPORTED_ACTION",
+      }),
+    ]));
   });
 });
