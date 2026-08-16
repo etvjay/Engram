@@ -8,7 +8,7 @@ import {
 import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
 import { applyEngramMigrations } from "../../../packages/cockroach/src/migrations.js";
 import { CockroachMemoryRepository } from "../../../packages/cockroach/src/repository.js";
-import { CockroachRuntimeStore } from "../../../packages/cockroach/src/runtime-store.js";
+import { AtomicCockroachRuntimeStore } from "../../../packages/cockroach/src/atomic-runtime-store.js";
 import { EngramRuntime } from "../../../packages/runtime/src/runtime.js";
 import { DEMO_RUNTIME_POLICIES } from "../../demo/src/runtime-policy.js";
 import { runEngramRuntimeDemo } from "../../demo/src/run-runtime-demo.js";
@@ -51,7 +51,7 @@ async function main() {
 
     verificationStage = "RUN_RUNTIME_CAUSAL_SPINE";
     const repository = new CockroachMemoryRepository(pool, new TitanEmbeddingProvider());
-    const store = new CockroachRuntimeStore(pool, repository);
+    const store = new AtomicCockroachRuntimeStore(pool, repository);
     const runtime = new EngramRuntime(store, DEMO_RUNTIME_POLICIES);
     const agentId = `engram-live-${randomUUID()}`;
     const demo = await runEngramRuntimeDemo(runtime, { agentId });
@@ -104,6 +104,7 @@ async function main() {
         runtimeInfluenceValidation: "VERIFIED",
         counterfactualProvenance: "VERIFIED",
         decisionMemoryTrace: "VERIFIED",
+        atomicEventSequencing: "VERIFIED",
         managedMcpConnection: "VERIFIED",
         managedMcpProvenanceQuery: "VERIFIED",
       },
@@ -161,6 +162,7 @@ main().catch(async (error) => {
         runtimeInfluenceValidation: "UNKNOWN",
         counterfactualProvenance: "UNKNOWN",
         decisionMemoryTrace: "UNKNOWN",
+        atomicEventSequencing: "UNKNOWN",
         managedMcpConnection: "UNKNOWN",
         managedMcpProvenanceQuery: "UNKNOWN",
       },
