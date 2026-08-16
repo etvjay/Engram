@@ -130,6 +130,7 @@ class DeploymentMemoryStore implements EngramRuntimeStore {
   }
 
   async updateRecallExposure(update: RecallExposureUpdate) {
+    const memoryStateById = new Map(update.exposedMemoryStates.map((state) => [state.memoryId, state.memoryStateDigest]));
     const executionId = this.pendingRetrievalExecution.get(update.retrievalId);
     if (!executionId) throw new Error("Unknown retrieval");
     this.recalls.push({
@@ -141,6 +142,7 @@ class DeploymentMemoryStore implements EngramRuntimeStore {
       candidates: update.exposedMemoryIds.map((memoryId, index) => ({
         retrievalId: update.retrievalId,
         memoryId,
+        memoryStateDigest: memoryStateById.get(memoryId),
         rank: index + 1,
         score: 0.97 - index * 0.01,
       })),

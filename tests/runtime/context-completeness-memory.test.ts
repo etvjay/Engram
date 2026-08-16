@@ -59,6 +59,7 @@ class ContextCompletenessStore implements EngramRuntimeStore {
   }
 
   async updateRecallExposure(update: RecallExposureUpdate) {
+    const memoryStateById = new Map(update.exposedMemoryStates.map((state) => [state.memoryId, state.memoryStateDigest]));
     this.exposureUpdates.push(update);
     this.recalls.push({
       id: update.retrievalId,
@@ -69,6 +70,7 @@ class ContextCompletenessStore implements EngramRuntimeStore {
       candidates: update.exposedMemoryIds.map((memoryId, index) => ({
         retrievalId: update.retrievalId,
         memoryId,
+        memoryStateDigest: memoryStateById.get(memoryId),
         rank: index + 1,
         score: 0.99,
       })),

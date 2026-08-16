@@ -86,6 +86,7 @@ class LifecycleStore implements EngramRuntimeStore {
   }
 
   async updateRecallExposure(update: RecallExposureUpdate) {
+    const memoryStateById = new Map(update.exposedMemoryStates.map((state) => [state.memoryId, state.memoryStateDigest]));
     const search = this.searches.get(update.retrievalId)!;
     this.recalls.set(update.retrievalId, {
       id: update.retrievalId,
@@ -98,6 +99,7 @@ class LifecycleStore implements EngramRuntimeStore {
         .map((candidate, index) => ({
           retrievalId: update.retrievalId,
           memoryId: candidate.memory.id,
+          memoryStateDigest: memoryStateById.get(candidate.memory.id),
           rank: index + 1,
           score: candidate.finalScore,
         })),
