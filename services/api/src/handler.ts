@@ -9,12 +9,14 @@ import { getCockroachMcpStatus, inspectMemoryProvenanceViaMcp } from "../../../p
 import { getEngramRuntime } from "../../runtime/src/create-runtime.js";
 import { getEngramDemoRuntime } from "../../demo/src/create-demo-runtime.js";
 import { runEngramRuntimeDemo } from "../../demo/src/run-runtime-demo.js";
+import { authorizeInspection, requiresInspectionAuthorization } from "./auth.js";
 
 export type ApiGatewayV2Event = {
   requestContext?: { http?: { method?: string } };
   rawPath?: string;
   pathParameters?: Record<string, string | undefined>;
   queryStringParameters?: Record<string, string | undefined> | null;
+  headers?: Record<string, string | undefined>;
   body?: string | null;
   isBase64Encoded?: boolean;
 };
@@ -54,6 +56,12 @@ export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Res
   try {
     if (method === "OPTIONS") return response(204, {});
     if (method === "GET" && path === "/health") return response(200, { service: "engram-api", status: "ok", runtime: "engram-runtime/v1", protocolBoundary: { externalExecution: "APPLICATION_DEFINED", operationalMemory: "ENGRAM_MANAGED", decisionAuthority: "APPLICATION_OWNED", demoExternalExecution: "SIMULATED" } });
+
+    if (requiresInspectionAuthorization(method, path)) {
+      const authorization = authorizeInspection(event.headers);
+      if (!authorization.ok) return response(authorization.statusCode, { error: authorization.error });
+    }
+
     if (method === "GET" && path === "/v1/mcp/status") return response(200, await getCockroachMcpStatus());
 
     const mcpMemoryMatch = path.match(/^\/v1\/mcp\/memories\/([0-9a-fA-F-]{36})\/provenance$/);
