@@ -22,9 +22,18 @@ Update:
 
 This registry is the canonical inventory for frontend builders. A missing registry entry means the module is not considered exposed for frontend integration.
 
+### Every package/service must be classified
+
+Every top-level `packages/*` and `services/*` directory must appear in exactly one boundary inventory:
+
+- frontend-consumable modules: `docs/frontend-modules/registry.json`;
+- non-browser modules: `docs/frontend-modules/server-only.json` with the reason and sanctioned frontend boundary.
+
+A new unclassified package/service fails repository conformance. Do not leave frontend builders guessing whether an undocumented module exists or is intentionally private.
+
 ### Security classification
 
-Every entry must use one of:
+Frontend entries use one of:
 
 - `BROWSER_SAFE` — may be bundled directly into a browser application;
 - `BROWSER_CONDITIONAL` — browser-compatible code exists, but deployment/authentication constraints apply;
@@ -42,3 +51,5 @@ A frontend-consumable surface is incomplete until:
 3. registry entry exists;
 4. relevant tests exist;
 5. `npm run check` passes.
+
+Any top-level package/service is incomplete until its frontend boundary is classified.
