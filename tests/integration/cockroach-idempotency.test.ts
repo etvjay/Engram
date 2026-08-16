@@ -16,7 +16,7 @@ class DeterministicEmbeddingProvider implements EmbeddingProvider {
   }
 }
 
-suite("Cockroach event idempotency", () => {
+suite("Cockroach idempotency", () => {
   let pool: pg.Pool;
   let repository: CockroachMemoryRepository;
 
@@ -30,7 +30,7 @@ suite("Cockroach event idempotency", () => {
     await pool?.end();
   });
 
-  it("accepts an exact replay but rejects the same sequence with different semantics", async () => {
+  it("accepts an exact event replay but rejects the same sequence with different semantics", async () => {
     const started = await repository.startExecution({
       agentId: `idempotency-agent-${randomUUID()}`,
       workflowType: "idempotency-proof",
@@ -57,5 +57,36 @@ suite("Cockroach event idempotency", () => {
       id: randomUUID(),
       payload: { result: "different" },
     })).rejects.toThrow(`EVENT_IDEMPOTENCY_CONFLICT:${started.executionId}:0`);
+  });
+
+  it("accepts an exact outcome replay but rejects a semantic rewrite", async () => {
+    const started = await repository.startExecution({
+      agentId: `outcome-idempotency-agent-${randomUUID()}`,
+      workflowType: "idempotency-proof",
+      intent: "record one outcome exactly once",
+      context: {},
+      constraints: {},
+    });
+    const outcome = {
+      id: randomUUID(),
+      executionId: started.executionId,
+      status: "FAILURE" as const,
+      failureType: "DEPENDENCY_UNAVAILABLE",
+      summary: "Dependency alpha failed",
+      result: { dependency: "alpha" },
+      evidenceState: "OBSERVED" as const,
+    };
+
+    await repository.recordOutcome(outcome);
+    await expect(repository.recordOutcome(outcome)).resolves.toBeUndefined();
+
+    await expect(repository.recordOutcome({
+      ...outcome,
+      id: randomUUID(),
+      status: "SUCCESS",
+      failureType: undefined,
+      summary: "Rewritten to success",
+      result: { dependency: "alpha", rewritten: true },
+    })).rejects.toThrow(`OUTCOME_IDEMPOTENCY_CONFLICT:${started.executionId}`);
   });
 });
