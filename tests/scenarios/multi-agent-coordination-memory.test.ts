@@ -24,7 +24,6 @@ function memory(overrides: Partial<OperationalMemory> = {}): OperationalMemory {
     confidence: 0.95,
     evidenceState: "OBSERVED",
     validFrom: new Date(),
-    createdAt: new Date(),
     ...overrides,
   };
 }
