@@ -71,7 +71,7 @@ Status: MITIGATED / LOAD UNVERIFIED.
 
 Attack: semantically similar memory from another agent is retrieved and influences the current execution.
 
-Current mitigation: retrieval is agent-scoped and the live verifier creates a unique agent identity per proof run.
+Current mitigation: retrieval is agent-scoped and the live verifier creates a unique agent identity per proof run. The latest vector-index migration also scopes the C-SPANN search index by agent ID.
 
 Residual risk: the MVP does not yet constitute a complete multi-tenant authorization model. API authentication/authorization and tenant isolation remain production work.
 
@@ -127,11 +127,11 @@ Status: MITIGATED.
 
 Attack: a live vector query succeeds through a full scan, but evidence states that CockroachDB C-SPANN accelerated the retrieval.
 
-Current mitigation: the claims ledger keeps ENG-003 at IMPLEMENTED and explicitly requires query-plan evidence before promotion.
+Current mitigation: live verification now runs `EXPLAIN` over the production retrieval query shape, records the raw plan, and separates `vectorDistanceRetrieval` from `cspannCosineIndexUsage`. The expected index is agent-scoped and uses `vector_cosine_ops`, matching Engram's `<=>` retrieval metric.
 
-Required next proof: capture an EXPLAIN plan for the actual retrieval query and record whether the vector index is selected. If index use cannot be shown, the artifact must say VECTOR QUERY VERIFIED / C-SPANN INDEX USAGE UNVERIFIED.
+Required live proof: the credentialed artifact must show the optimizer naturally selected `memories_agent_embedding_cosine_idx`. If it does not, the artifact leaves C-SPANN usage UNVERIFIED and ENG-003 is not promoted.
 
-Status: OPEN — BLOCKS C-SPANN VERIFIED CLAIM.
+Status: MITIGATED MECHANICALLY / LIVE PLAN UNVERIFIED.
 
 ### 14. Adapter/cloud implementation is mistaken for live verification
 
@@ -145,11 +145,11 @@ Status: MITIGATED.
 
 Attack: live verification fails before the success artifact is written; only ephemeral workflow logs explain the boundary.
 
-Current state: workflow uploads `evidence/live/` even on failure, but the verifier currently writes the canonical artifact only on successful completion.
+Current mitigation: the verifier catches failures, sanitizes likely credentials from the error, writes `evidence/live/latest.json` with `evidenceClass: UNKNOWN`, records the failed stage and commit/run IDs, and leaves unproven boundaries UNKNOWN. The workflow uploads the evidence directory even on failure.
 
-Required improvement: write a sanitized failure artifact with evidenceClass UNKNOWN or FAILED, failed stage, timestamp, commit/run IDs, and every unproven boundary left UNVERIFIED. Never serialize credentials or connection strings.
+Residual risk: sanitization must remain conservative as new provider error formats are introduced.
 
-Status: OPEN.
+Status: MITIGATED.
 
 ### 16. Simulated execution is mistaken for live venue operation
 
@@ -162,11 +162,10 @@ Status: MITIGATED.
 ## Blocking items before stronger production claims
 
 1. Run the canonical credentialed live-verification workflow successfully.
-2. Capture vector query-plan evidence and distinguish vector query success from C-SPANN index selection.
-3. Persist a sanitized failure artifact for unsuccessful live verification.
-4. Validate SAM build/deployment and exercise health, runtime demo, trace, and control-plane reads through the public endpoint.
-5. Add authentication/authorization and tenant isolation before claiming multi-tenant production readiness.
-6. Run concurrency/load verification for event sequencing, serializable retries, and idempotency.
+2. Confirm the live EXPLAIN plan naturally selects `memories_agent_embedding_cosine_idx`; otherwise keep C-SPANN usage unverified and tune the query/index without forcing a proof-only hint.
+3. Validate SAM build/deployment and exercise health, runtime demo, trace, and control-plane reads through the public endpoint.
+4. Add authentication/authorization and tenant isolation before claiming multi-tenant production readiness.
+5. Run concurrency/load verification for event sequencing, serializable retries, and idempotency.
 
 ## Decision
 
