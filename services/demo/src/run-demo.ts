@@ -9,10 +9,14 @@ const DEMO_CONTEXT = {
   requiredLiquidity: 50,
 } as const;
 
-const AGENT_ID = "engram-demo-agent";
+const DEFAULT_AGENT_ID = "engram-demo-agent";
 const WORKFLOW_TYPE = "multi_venue_execution";
 const ENVIRONMENT_VERSION = "demo-v1";
 const POLICY_VERSION = "route-policy-v1";
+
+export type RunEngramDemoOptions = {
+  agentId?: string;
+};
 
 async function appendSimulationEvents(
   repo: MemoryRepository,
@@ -60,9 +64,11 @@ async function appendSimulationEvents(
  * External venue behavior is explicitly SIMULATED; persistence, retrieval,
  * provenance and decision influence are real repository operations.
  */
-export async function runEngramDemo(repo: MemoryRepository) {
+export async function runEngramDemo(repo: MemoryRepository, options: RunEngramDemoOptions = {}) {
+  const agentId = options.agentId?.trim() || DEFAULT_AGENT_ID;
+
   const runA = await repo.startExecution({
-    agentId: AGENT_ID,
+    agentId,
     workflowType: WORKFLOW_TYPE,
     intent: "Acquire the target asset using the lowest-risk available route",
     context: { market: "demo", liquidityRegime: "thin" },
@@ -100,7 +106,7 @@ export async function runEngramDemo(repo: MemoryRepository) {
   await repo.recordOutcome(outcomeA);
 
   const memory = admitOperationalMemory({
-    agentId: AGENT_ID,
+    agentId,
     executionId: runA.executionId,
     workflowType: WORKFLOW_TYPE,
     environmentVersion: ENVIRONMENT_VERSION,
@@ -117,7 +123,7 @@ export async function runEngramDemo(repo: MemoryRepository) {
   await repo.persistMemory(memory, [runA.executionId]);
 
   const runB = await repo.startExecution({
-    agentId: AGENT_ID,
+    agentId,
     workflowType: WORKFLOW_TYPE,
     intent: "Acquire the target asset using the lowest-risk available route",
     context: { market: "demo", liquidityRegime: "thin" },
@@ -129,7 +135,7 @@ export async function runEngramDemo(repo: MemoryRepository) {
   let retrieval;
   try {
     retrieval = await repo.searchMemory({
-      agentId: AGENT_ID,
+      agentId,
       executionId: runB.executionId,
       query: "multi venue acquisition under thin liquidity where Venue C may fail",
       workflowType: WORKFLOW_TYPE,
@@ -194,6 +200,7 @@ export async function runEngramDemo(repo: MemoryRepository) {
   });
 
   return {
+    agentId,
     evidenceBoundary: {
       externalExecution: "SIMULATED",
       persistence: "REAL",
