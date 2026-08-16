@@ -219,12 +219,17 @@ export class EngramRuntime {
     const rejectedSignals: RuntimeCompleteResult["rejectedSignals"] = [];
 
     for (const signal of input.admissionSignals ?? []) {
+      const sourceExecutionIds = [...new Set(
+        signal.sourceExecutionIds?.length ? signal.sourceExecutionIds : [execution.id],
+      )];
       const reasons = evaluateAdmissionSignal(signal, policies);
+      reasons.push(...await this.validateAdmissionSources(execution, sourceExecutionIds));
       if (reasons.length) {
         rejectedSignals.push({ kind: signal.kind, reasons });
         await this.evaluation(execution.id, "MEMORY_NOT_ADMITTED", {
           kind: signal.kind,
           reasons,
+          sourceExecutionIds,
           memoryPolicyBundleVersion: execution.memoryPolicyBundleVersion ?? null,
         });
         continue;
@@ -238,6 +243,7 @@ export class EngramRuntime {
         structuredContext: {
           ...signal.details,
           sourceExecutionId: execution.id,
+          sourceExecutionIds,
           workflowType: execution.workflowType,
           outcome: input.status,
         },
@@ -248,11 +254,12 @@ export class EngramRuntime {
         toolVersion: execution.toolVersion,
         policyVersion: policies.admission.policyVersion,
       };
-      await this.store.persistMemory(memory, [execution.id]);
+      await this.store.persistMemory(memory, sourceExecutionIds);
       admittedMemories.push(memory);
       await this.evaluation(execution.id, "MEMORY_ADMITTED", {
         memoryId: memory.id,
         kind: signal.kind,
+        sourceExecutionIds,
         policyVersion: policies.admission.policyVersion,
         memoryPolicyBundleVersion: execution.memoryPolicyBundleVersion ?? null,
       });
@@ -319,6 +326,28 @@ export class EngramRuntime {
         throw new Error(`Memory ${memory.id} is not eligible to influence this execution: ${reasons.join(", ")}`);
       }
     }
+  }
+
+  private async validateAdmissionSources(
+    execution: RuntimeExecutionRecord,
+    sourceExecutionIds: string[],
+  ): Promise<string[]> {
+    const reasons: string[] = [];
+    if (!sourceExecutionIds.includes(execution.id)) {
+      reasons.push("ADMITTING_EXECUTION_NOT_IN_SOURCE_SET");
+    }
+
+    for (const sourceExecutionId of sourceExecutionIds) {
+      const source = await this.store.getExecution(sourceExecutionId);
+      if (!source) {
+        reasons.push(`SOURCE_EXECUTION_NOT_FOUND:${sourceExecutionId}`);
+        continue;
+      }
+      if (source.agentId !== execution.agentId) {
+        reasons.push(`SOURCE_EXECUTION_AGENT_MISMATCH:${sourceExecutionId}`);
+      }
+    }
+    return reasons;
   }
 
   private async requireRunningExecution(executionId: string) {
