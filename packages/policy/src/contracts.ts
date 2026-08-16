@@ -44,7 +44,25 @@ export const ExpiryPolicySchema = z.object({
   maxAgeSeconds: z.number().int().positive().optional(),
 });
 
+export const MemoryPolicyBundleSchema = z.object({
+  contractVersion: z.literal(MEMORY_POLICY_CONTRACT_VERSION),
+  bundleVersion: z.string().min(1),
+  admission: AdmissionPolicySchema,
+  retrieval: RetrievalPolicySchema,
+  influence: InfluencePolicySchema,
+  expiry: ExpiryPolicySchema,
+  description: z.string().optional(),
+});
+
+export const MemoryPolicyScopeSchema = z.object({
+  agentId: z.string().min(1).optional(),
+  workflowType: z.string().min(1).optional(),
+  environmentVersion: z.string().min(1).optional(),
+});
+
 export type AdmissionPolicy = z.infer<typeof AdmissionPolicySchema>;
 export type RetrievalPolicy = z.infer<typeof RetrievalPolicySchema>;
 export type InfluencePolicy = z.infer<typeof InfluencePolicySchema>;
 export type ExpiryPolicy = z.infer<typeof ExpiryPolicySchema>;
+export type MemoryPolicyBundle = z.infer<typeof MemoryPolicyBundleSchema>;
+export type MemoryPolicyScope = z.infer<typeof MemoryPolicyScopeSchema>;
