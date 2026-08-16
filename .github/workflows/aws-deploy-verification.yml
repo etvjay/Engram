@@ -1,0 +1,195 @@
+name: Engram AWS Deploy Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack_name:
+        description: CloudFormation stack name
+        required: false
+        default: engram
+        type: string
+      cors_origin:
+        description: Allowed browser origin for the deployed API
+        required: false
+        default: '*'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-and-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      STACK_NAME: ${{ inputs.stack_name }}
+      CORS_ORIGIN: ${{ inputs.cors_origin }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      ENGRAM_INSPECTION_TOKEN: ${{ secrets.ENGRAM_INSPECTION_TOKEN }}
+      BEDROCK_EMBEDDING_MODEL: ${{ vars.BEDROCK_EMBEDDING_MODEL || 'amazon.titan-embed-text-v2:0' }}
+      COCKROACH_MCP_CLUSTER_ID: ${{ secrets.COCKROACH_MCP_CLUSTER_ID }}
+      COCKROACH_MCP_API_KEY: ${{ secrets.COCKROACH_MCP_API_KEY }}
+      COCKROACH_MCP_DATABASE: ${{ vars.COCKROACH_MCP_DATABASE || 'defaultdb' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: aws-actions/setup-sam@v2
+
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in DATABASE_URL AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY ENGRAM_INSPECTION_TOKEN COCKROACH_MCP_CLUSTER_ID COCKROACH_MCP_API_KEY; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is not configured"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.1.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - run: npm install
+
+      - name: Build SAM application
+        run: sam build
+
+      - name: Deploy Engram API
+        shell: bash
+        run: |
+          set -euo pipefail
+          sam deploy \
+            --stack-name "$STACK_NAME" \
+            --region "$AWS_REGION" \
+            --resolve-s3 \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              "DatabaseUrl=$DATABASE_URL" \
+              "CorsOrigin=$CORS_ORIGIN" \
+              "BedrockEmbeddingModel=$BEDROCK_EMBEDDING_MODEL" \
+              "InspectionToken=$ENGRAM_INSPECTION_TOKEN" \
+              "CockroachMcpClusterId=$COCKROACH_MCP_CLUSTER_ID" \
+              "CockroachMcpApiKey=$COCKROACH_MCP_API_KEY" \
+              "CockroachMcpDatabase=$COCKROACH_MCP_DATABASE"
+
+      - name: Resolve deployed API URL
+        id: api
+        shell: bash
+        run: |
+          set -euo pipefail
+          api_url="$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --region "$AWS_REGION" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue | [0]" \
+            --output text)"
+          if [[ -z "$api_url" || "$api_url" == "None" ]]; then
+            echo "::error::ApiUrl output was not found"
+            exit 1
+          fi
+          echo "api_url=$api_url" >> "$GITHUB_OUTPUT"
+
+      - name: Verify public and protected API surfaces
+        shell: bash
+        env:
+          API_URL: ${{ steps.api.outputs.api_url }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/aws
+
+          curl --fail-with-body --silent --show-error \
+            "$API_URL/health" \
+            -o evidence/aws/health.json
+
+          curl --fail-with-body --silent --show-error \
+            -X POST "$API_URL/v1/demo/run" \
+            -H 'content-type: application/json' \
+            -d '{}' \
+            -o evidence/aws/demo.json
+
+          run_b="$(node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('evidence/aws/demo.json','utf8'));if(!d.runB?.executionId)process.exit(2);process.stdout.write(d.runB.executionId)")"
+          memory_id="$(node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('evidence/aws/demo.json','utf8'));if(!d.memory?.id)process.exit(2);process.stdout.write(d.memory.id)")"
+
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+            "$API_URL/v1/executions/$run_b/trace" \
+            -o evidence/aws/trace.json
+
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+            "$API_URL/v1/control-plane/overview" \
+            -o evidence/aws/control-plane-overview.json
+
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+            "$API_URL/v1/control-plane/memories/$memory_id/evaluation" \
+            -o evidence/aws/memory-evaluation.json
+
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+            "$API_URL/v1/mcp/status" \
+            -o evidence/aws/mcp-status.json
+
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+            "$API_URL/v1/mcp/memories/$memory_id/provenance" \
+            -o evidence/aws/mcp-provenance.json
+
+          API_URL="$API_URL" RUN_B="$run_b" MEMORY_ID="$memory_id" node <<'NODE'
+          const fs = require('fs');
+          const read = (name) => JSON.parse(fs.readFileSync(`evidence/aws/${name}.json`, 'utf8'));
+          const evidence = {
+            schemaVersion: 'engram-aws-deployment-proof-v1',
+            evidenceClass: 'VERIFIED',
+            verificationKind: 'AWS_DEPLOYED_API',
+            generatedAt: new Date().toISOString(),
+            commitSha: process.env.GITHUB_SHA ?? null,
+            githubRunId: process.env.GITHUB_RUN_ID ?? null,
+            stackName: process.env.STACK_NAME ?? null,
+            region: process.env.AWS_REGION ?? null,
+            apiUrl: process.env.API_URL,
+            runBExecutionId: process.env.RUN_B,
+            memoryId: process.env.MEMORY_ID,
+            boundaries: {
+              samBuild: 'VERIFIED',
+              samDeploy: 'VERIFIED',
+              publicHealth: 'VERIFIED',
+              runtimeDemo: 'VERIFIED',
+              protectedTrace: 'VERIFIED',
+              protectedControlPlane: 'VERIFIED',
+              protectedMemoryEvaluation: 'VERIFIED',
+              managedMcpStatusEndpoint: 'VERIFIED',
+              managedMcpProvenanceEndpoint: 'VERIFIED',
+              externalVenueExecution: 'SIMULATED',
+            },
+            health: read('health'),
+            mcpStatus: read('mcp-status'),
+          };
+          fs.writeFileSync('evidence/aws/latest.json', `${JSON.stringify(evidence, null, 2)}\n`);
+          NODE
+
+      - name: Upload AWS deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engram-aws-deployment-${{ github.run_id }}
+          path: evidence/aws/
+          if-no-files-found: warn
+          retention-days: 30
