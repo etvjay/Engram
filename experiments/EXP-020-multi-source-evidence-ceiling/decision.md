@@ -1,9 +1,11 @@
 # EXP-020 — Decision
 
-**Status: PENDING — NOT ACCEPTED**
+**Status: ACCEPTED**
 
-No architectural decision is accepted yet.
+Accept the conservative multi-source evidence ceiling.
 
-The red phase has shown that current multi-source admission can elevate a memory above one of its declared supporting source outcomes. The candidate rule under test is that every declared `sourceExecutionId` is supporting evidence and therefore contributes a conservative evidence ceiling; the memory may not claim an evidence rank above the weakest declared supporting source outcome.
+Every execution named in `sourceExecutionIds` is asserted by the admission contract to supply evidence supporting the derived Operational Memory. Therefore the memory's `evidenceState` must not exceed the evidence state of any declared supporting source outcome.
 
-This file will be promoted to an accepted decision only after the implementation, adversarial regression, positive controls, fail-closed missing-outcome control and full Engram CI are green.
+The admitting execution is already bounded by EXP-017. For additional historical sources, Engram resolves the persisted outcome evidence state and rejects admission when the requested memory evidence rank exceeds it. If a historical source outcome cannot be resolved, admission fails closed rather than manufacturing evidence authority.
+
+This is recorded architecturally as D-025.

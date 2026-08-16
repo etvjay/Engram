@@ -161,3 +161,13 @@ Before accepting a later influence, Engram reloads the memory and requires its c
 The digest is provenance metadata, not proof that a memory is true, beneficial, current, or authorized. State continuity composes with exact retrieval identity, provenance authenticity, agent isolation, lifecycle eligibility, evidence-state limits, policy, contradiction, and counterfactual checks rather than replacing them.
 
 The canonical digest namespace begins at `engram.memory-state/v1:sha256:<digest>`. Equivalent object key ordering must canonicalize identically so storage serialization differences do not manufacture false state changes.
+
+## D-025 — Multi-source memory authority is bounded by every declared supporting source
+
+**Status:** ACCEPTED
+
+`sourceExecutionIds` is an evidence-support contract. Every declared source therefore contributes an upper bound to the evidence authority of a derived Operational Memory. A multi-source memory may not claim an evidence rank stronger than the weakest declared supporting source outcome.
+
+The admitting execution remains bounded by D/EXP-017's direct admission ceiling. Additional historical sources are revalidated against their persisted outcome evidence; an unresolved historical outcome fails closed. Adding one strong source cannot elevate a memory whose declared support still depends on weaker evidence.
+
+This decision does not assign weights or distinguish contextual from materially supporting sources. If Engram later needs non-material provenance citations, that requires an explicit source-role contract rather than weakening this invariant.
