@@ -74,70 +74,61 @@ Resources:
       Events:
         Health:
           Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /health
-            Method: GET
+          Properties: { ApiId: !Ref EngramApi, Path: /health, Method: GET }
         StartExecution:
           Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /v1/executions
-            Method: POST
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/executions, Method: POST }
         Recall:
           Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /v1/executions/{id}/recall
-            Method: POST
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/executions/{id}/recall, Method: POST }
         RecordDecision:
           Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /v1/executions/{id}/decisions
-            Method: POST
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/executions/{id}/decisions, Method: POST }
         RecordObservation:
           Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /v1/executions/{id}/observations
-            Method: POST
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/executions/{id}/observations, Method: POST }
         CompleteExecution:
           Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /v1/executions/{id}/complete
-            Method: POST
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/executions/{id}/complete, Method: POST }
         ExecutionTrace:
           Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /v1/executions/{id}/trace
-            Method: GET
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/executions/{id}/trace, Method: GET }
         McpStatus:
           Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /v1/mcp/status
-            Method: GET
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/mcp/status, Method: GET }
         McpMemoryProvenance:
           Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /v1/mcp/memories/{id}/provenance
-            Method: GET
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/mcp/memories/{id}/provenance, Method: GET }
         RunDemo:
           Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /v1/demo/run
-            Method: POST
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/demo/run, Method: POST }
         SearchMemory:
           Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /v1/memory/search
-            Method: POST
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/memory/search, Method: POST }
+        ControlOverview:
+          Type: HttpApi
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/overview, Method: GET }
+        ControlAgents:
+          Type: HttpApi
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/agents, Method: GET }
+        ControlExecutions:
+          Type: HttpApi
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/executions, Method: GET }
+        ControlMemories:
+          Type: HttpApi
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/memories, Method: GET }
+        ControlInfluences:
+          Type: HttpApi
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/influences, Method: GET }
+        ControlPolicies:
+          Type: HttpApi
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/policies, Method: GET }
+        ControlPolicyAssignments:
+          Type: HttpApi
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/policy-assignments, Method: GET }
+        MemoryEvaluation:
+          Type: HttpApi
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/memories/{id}/evaluation, Method: GET }
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
