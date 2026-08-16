@@ -1,28 +1,54 @@
 # Engram live deployment runbook
 
-Status labels in this document are deliberate. Do not mark a step VERIFIED until its corresponding command or deployed endpoint has been exercised.
+Status labels in this document are deliberate. Do not mark a step VERIFIED until its corresponding command, workflow, or deployed endpoint has been exercised.
 
 ## Required external resources
 
 - CockroachDB Cloud cluster with a database for Engram.
 - CockroachDB SQL connection string (`DATABASE_URL`).
 - AWS account with Lambda/API Gateway deployment rights.
-- Amazon Bedrock access to `amazon.titan-embed-text-v2:0` in the deployment region.
-- Optional but recommended for the hackathon: CockroachDB Cloud Managed MCP service account with read-only access to the Engram cluster.
+- Amazon Bedrock access to `amazon.titan-embed-text-v2:0` (or the configured embedding model) in the deployment region.
+- CockroachDB Cloud Managed MCP credentials for the canonical hackathon live proof.
+- A strong random `ENGRAM_INSPECTION_TOKEN` for protected read/inspection routes.
 
 ## CockroachDB
 
-Apply the migration in `db/migrations/001_initial.sql` to the target database, then run:
+Do not apply one migration file manually. Engram now has an ordered migration chain for runtime policy, evaluation, atomic event sequencing, and the canonical agent-scoped cosine vector index.
+
+Apply the full chain with:
+
+```bash
+DATABASE_URL='postgresql://...' npm run migrate
+```
+
+Then run the credential-gated integration suite:
 
 ```bash
 DATABASE_URL='postgresql://...' npm run test:integration
 ```
 
-The integration test must prove the persisted sequence:
+The database suite covers persisted memory/influence provenance plus concurrency/idempotency/isolation properties. A normal credential-free CI run only proves that these tests compile and are correctly gated; it does **not** constitute live CockroachDB verification.
 
-`Run A -> compensated outcome -> operational memory -> Run B retrieval -> changed route -> decision-memory provenance`.
+## Canonical live verification
 
-Until this test runs against CockroachDB Cloud, the database path is IMPLEMENTED but not VERIFIED.
+The repository has one canonical manual workflow:
+
+`.github/workflows/live-verification.yml`
+
+It requires CockroachDB, AWS/Bedrock, and Managed MCP credentials. The verifier:
+
+1. applies the complete migration chain;
+2. runs the EngramRuntime Run A → memory → Run B causal spine;
+3. verifies persisted recall exposure and accepted influence provenance;
+4. uses Amazon Bedrock Titan embeddings and records provider/model/region/dimensions;
+5. runs `EXPLAIN` against the **exact persisted Run B retrieval query and filters**;
+6. records whether CockroachDB naturally selected `memories_agent_embedding_cosine_idx`;
+7. queries the exact memory provenance through Managed MCP;
+8. writes `evidence/live/latest.json` on success **or** a sanitized UNKNOWN failure artifact on failure.
+
+External multi-venue execution remains **SIMULATED** in this workflow.
+
+C-SPANN index usage is a separate evidence boundary from successful vector-distance retrieval. If the natural plan does not show vector search using the expected agent-scoped cosine index, the artifact must leave C-SPANN usage UNVERIFIED.
 
 ## Managed MCP
 
@@ -30,23 +56,16 @@ CockroachDB Cloud's managed MCP endpoint is:
 
 `https://cockroachlabs.cloud/mcp`
 
-Engram uses these environment variables:
+Engram uses:
 
 ```bash
 COCKROACH_MCP_CLUSTER_ID='...'
 COCKROACH_MCP_API_KEY='...'
 COCKROACH_MCP_URL='https://cockroachlabs.cloud/mcp'
+COCKROACH_MCP_DATABASE='defaultdb'
 ```
 
-The application deliberately permits only CockroachDB read/introspection tools through its MCP adapter. Transactional Engram writes continue through the PostgreSQL-compatible application connection.
-
-After deployment, call:
-
-```bash
-curl "$API_URL/v1/mcp/status"
-```
-
-Expected when configured: `connected=true`, with read tools including `list_databases`, `list_tables`, `get_table_schema`, `select_query`, and `explain_query` when exposed by the server.
+Transactional Engram writes continue through the PostgreSQL-compatible application connection. Managed MCP is a read/introspection/provenance plane.
 
 Never store the MCP API key inside an execution event, memory, decision, trace, or frontend bundle.
 
@@ -65,17 +84,62 @@ sam deploy --guided \
   --parameter-overrides \
     DatabaseUrl='postgresql://...' \
     CorsOrigin='https://YOUR_FRONTEND' \
+    InspectionToken='A_LONG_RANDOM_SECRET' \
     CockroachMcpClusterId='YOUR_CLUSTER_ID' \
-    CockroachMcpApiKey='YOUR_SERVICE_ACCOUNT_KEY'
+    CockroachMcpApiKey='YOUR_SERVICE_ACCOUNT_KEY' \
+    CockroachMcpDatabase='defaultdb'
 ```
 
-The deployed Lambda exposes:
+`InspectionToken` is passed to Lambda as `ENGRAM_INSPECTION_TOKEN`. It is a demo/initial deployment authorization boundary, not a complete multi-tenant identity system.
+
+### Public demo/runtime surfaces
 
 - `GET /health`
-- `GET /v1/mcp/status`
 - `POST /v1/demo/run`
-- `POST /v1/memory/search`
+- runtime mutation operations under `POST /v1/executions/...`
+
+### Protected inspection surfaces
+
+Send:
+
+```bash
+Authorization: Bearer $ENGRAM_INSPECTION_TOKEN
+```
+
+for:
+
+- `GET /v1/mcp/status`
+- `GET /v1/mcp/memories/{id}/provenance`
 - `GET /v1/executions/{id}/trace`
+- `POST /v1/memory/search` (legacy read path)
+- all `GET /v1/control-plane/*` routes, including memory evaluation dossiers
+
+Protected routes fail closed with `INSPECTION_AUTH_NOT_CONFIGURED` when no deployment token exists, and return `UNAUTHORIZED` for a missing/incorrect bearer token.
+
+Example:
+
+```bash
+curl -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+  "$API_URL/v1/control-plane/overview"
+```
+
+## Deployment verification sequence
+
+After deployment, exercise at minimum:
+
+```bash
+curl "$API_URL/health"
+
+curl -X POST "$API_URL/v1/demo/run"
+
+curl -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+  "$API_URL/v1/control-plane/overview"
+
+curl -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+  "$API_URL/v1/mcp/status"
+```
+
+A deployed API claim is not VERIFIED until these public/protected surfaces have been exercised successfully against the deployed Lambda.
 
 ## Web UI
 
@@ -85,16 +149,19 @@ Build with the deployed API URL:
 VITE_API_BASE_URL="$API_URL" npm run build:web
 ```
 
-The output is written to `dist-web/` and can be hosted on S3 + CloudFront or another static host.
+The output is written to `dist-web/`. Do not embed `ENGRAM_INSPECTION_TOKEN` into a public static frontend bundle. A production control plane requires an authenticated backend/session architecture rather than a browser-shipped shared secret.
 
-## Hackathon evidence boundary
+## Evidence boundary
 
-The canonical demo must visibly state:
+The canonical demo/submission must state independently:
 
 - external venue execution: **SIMULATED**
-- CockroachDB persistence: **REAL** once live cluster test passes
-- vector/structured retrieval: **REAL** once live cluster test passes
-- memory-to-decision provenance: **REAL** once live cluster test passes
-- Managed MCP: **VERIFIED** only after `/v1/mcp/status` successfully connects to the target cluster
+- CockroachDB persistence: **VERIFIED** only after credentialed live proof
+- vector-distance retrieval: **VERIFIED** only after credentialed live proof
+- C-SPANN cosine index selection: **VERIFIED** only when the natural EXPLAIN plan proves it
+- Bedrock embeddings: **VERIFIED** only after a live Titan invocation
+- memory-to-decision provenance: **VERIFIED** only after live persisted trace proof
+- Managed MCP: **VERIFIED** only after live connection and exact provenance query
+- AWS deployment: **VERIFIED** only after the deployed public/protected endpoints are exercised
 
-Do not upgrade any of these labels based only on configuration or code presence.
+Do not upgrade any label based only on configuration, schema presence, or normal credential-free CI.
