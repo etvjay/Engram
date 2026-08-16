@@ -141,5 +141,9 @@ export type RuntimeCompleteResult = {
 export type RecallExposureUpdate = {
   retrievalId: string;
   exposedMemoryIds: string[];
+  exposedMemoryStates: Array<{
+    memoryId: string;
+    memoryStateDigest: string;
+  }>;
   rejected: Array<{ memoryId: string; reasons: string[] }>;
 };
