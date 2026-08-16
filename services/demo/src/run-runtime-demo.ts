@@ -13,6 +13,20 @@ const ENVIRONMENT_VERSION = "demo-v1";
 const TOOL_VERSION = "execution-simulator-v1";
 const AGENT_POLICY_VERSION = "route-policy-v1";
 
+export type RuntimeDemoOptions = {
+  agentId?: string;
+  /**
+   * Optional verification hook invoked after Run B recall has been persisted but
+   * before the influenced decision is recorded. Supplying a fresh runtime proves
+   * that recall-to-influence authority survives process/runtime reconstruction.
+   */
+  reconstructRuntimeAfterRecall?: (input: {
+    agentId: string;
+    executionId: string;
+    retrievalId: string;
+  }) => EngramRuntime | Promise<EngramRuntime>;
+};
+
 async function observeSimulation(runtime: EngramRuntime, executionId: string, result: ReturnType<typeof executeRoute>) {
   await runtime.observe({
     executionId,
@@ -42,7 +56,7 @@ async function observeSimulation(runtime: EngramRuntime, executionId: string, re
 
 export async function runEngramRuntimeDemo(
   runtime: EngramRuntime,
-  options: { agentId?: string } = {},
+  options: RuntimeDemoOptions = {},
 ) {
   const agentId = options.agentId ?? `engram-demo-agent-${randomUUID()}`;
 
@@ -124,8 +138,19 @@ export async function runEngramRuntimeDemo(
     })),
   });
 
+  let decisionRuntime = runtime;
+  let runtimeReconstructedAfterRecall = false;
+  if (options.reconstructRuntimeAfterRecall) {
+    decisionRuntime = await options.reconstructRuntimeAfterRecall({
+      agentId,
+      executionId: runB.executionId,
+      retrievalId: recall.recall.id,
+    });
+    runtimeReconstructedAfterRecall = true;
+  }
+
   const influential = recall.candidates.find((candidate) => routeDecision.memoryRefs.includes(candidate.memory.id));
-  await runtime.recordDecision({
+  await decisionRuntime.recordDecision({
     executionId: runB.executionId,
     decisionType: "ROUTE_SELECTION",
     selectedAction: { route: routeDecision.route },
@@ -148,8 +173,8 @@ export async function runEngramRuntimeDemo(
   });
 
   const resultB = executeRoute(routeDecision.route, DEMO_CONTEXT);
-  await observeSimulation(runtime, runB.executionId, resultB);
-  await runtime.complete({
+  await observeSimulation(decisionRuntime, runB.executionId, resultB);
+  await decisionRuntime.complete({
     executionId: runB.executionId,
     status: resultB.status,
     summary: resultB.status === "SUCCESS"
@@ -166,6 +191,7 @@ export async function runEngramRuntimeDemo(
       persistence: "REAL",
       retrieval: "REAL",
       decisionTrace: "REAL",
+      runtimeReconstruction: runtimeReconstructedAfterRecall ? "REAL" : "NOT_REQUESTED",
     },
     runA: { executionId: runA.executionId, route: baseline.route, outcome: resultA.status },
     memory: { id: memory.id, summary: memory.summary, sourceExecutionId: runA.executionId },
@@ -177,7 +203,8 @@ export async function runEngramRuntimeDemo(
       memoryRefs: routeDecision.memoryRefs,
       outcome: resultB.status,
     },
+    runtimeReconstructedAfterRecall,
     changedBehavior: JSON.stringify(baseline.route) !== JSON.stringify(routeDecision.route),
-    trace: await runtime.trace(runB.executionId),
+    trace: await decisionRuntime.trace(runB.executionId),
   };
 }
