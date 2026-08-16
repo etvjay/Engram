@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
 import type pg from "pg";
 import type { EmbeddingProvider, OperationalMemory } from "../../packages/memory-core/src/domain.js";
 import { createCockroachPool } from "../../packages/cockroach/src/client.js";
+import { applyEngramMigrations } from "../../packages/cockroach/src/migrations.js";
 import { CockroachMemoryRepository } from "../../packages/cockroach/src/repository.js";
 import { CockroachRuntimeStore } from "../../packages/cockroach/src/runtime-store.js";
 import type { EngramRuntimeStore } from "../../packages/runtime/src/store.js";
@@ -30,13 +30,9 @@ suite("Cockroach-backed Engram runtime", () => {
 
   beforeAll(async () => {
     pool = createCockroachPool();
+    await applyEngramMigrations(pool);
     repository = new CockroachMemoryRepository(pool, new DeterministicEmbeddingProvider());
     store = new CockroachRuntimeStore(pool, repository);
-
-    for (const file of ["001_initial.sql", "002_runtime.sql"]) {
-      const sql = await readFile(new URL(`../../db/migrations/${file}`, import.meta.url), "utf8");
-      await pool.query(sql);
-    }
   });
 
   afterAll(async () => {
