@@ -1,0 +1,259 @@
+import type pg from "pg";
+import type { MemoryRecall } from "../../core/src/protocol.js";
+import type {
+  ExecutionContext,
+  ExecutionEvent,
+  MemorySearchInput,
+  MemorySearchResult,
+  OperationalMemory,
+  Outcome,
+} from "../../memory-core/src/domain.js";
+import type { EngramRuntimeStore } from "../../runtime/src/store.js";
+import type {
+  RecallExposureUpdate,
+  RuntimeDecisionRecord,
+  RuntimeEvaluationEvent,
+  RuntimeExecutionRecord,
+} from "../../runtime/src/types.js";
+import { CockroachMemoryRepository } from "./repository.js";
+
+function asJson(value: unknown): string {
+  return JSON.stringify(value ?? {});
+}
+
+export class CockroachRuntimeStore implements EngramRuntimeStore {
+  constructor(
+    private readonly pool: pg.Pool,
+    private readonly memory: CockroachMemoryRepository,
+  ) {}
+
+  startExecution(input: ExecutionContext) {
+    return this.memory.startExecution(input);
+  }
+
+  appendEvent(event: ExecutionEvent) {
+    return this.memory.appendEvent(event);
+  }
+
+  recordOutcome(outcome: Outcome) {
+    return this.memory.recordOutcome(outcome);
+  }
+
+  searchMemory(input: MemorySearchInput): Promise<MemorySearchResult> {
+    return this.memory.searchMemory(input);
+  }
+
+  persistMemory(memory: OperationalMemory, sourceExecutionIds: string[]) {
+    return this.memory.persistMemory(memory, sourceExecutionIds);
+  }
+
+  getTrace(executionId: string) {
+    return this.memory.getTrace(executionId);
+  }
+
+  async getExecution(executionId: string): Promise<RuntimeExecutionRecord | null> {
+    const result = await this.pool.query<{
+      id: string;
+      agent_external_id: string;
+      agent_version: string | null;
+      workflow_type: string;
+      intent: string;
+      context: Record<string, unknown>;
+      constraints: Record<string, unknown>;
+      environment_version: string | null;
+      tool_version: string | null;
+      policy_version: string | null;
+      status: RuntimeExecutionRecord["status"];
+      started_at: Date;
+      completed_at: Date | null;
+    }>(
+      `SELECT e.id, a.external_id AS agent_external_id, a.agent_version,
+              e.workflow_type, e.intent, e.context, e.constraints,
+              e.environment_version, e.tool_version, e.policy_version,
+              e.status, e.started_at, e.completed_at
+         FROM executions e
+         JOIN agents a ON a.id=e.agent_id
+        WHERE e.id=$1`,
+      [executionId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      agentId: row.agent_external_id,
+      agentVersion: row.agent_version ?? undefined,
+      workflowType: row.workflow_type,
+      intent: row.intent,
+      context: row.context,
+      constraints: row.constraints,
+      environmentVersion: row.environment_version ?? undefined,
+      toolVersion: row.tool_version ?? undefined,
+      policyVersion: row.policy_version ?? undefined,
+      status: row.status,
+      startedAt: row.started_at,
+      completedAt: row.completed_at ?? undefined,
+    };
+  }
+
+  async getMemory(memoryId: string): Promise<OperationalMemory | null> {
+    const result = await this.pool.query<{
+      id: string;
+      agent_external_id: string;
+      memory_type: string;
+      summary: string;
+      structured_context: Record<string, unknown>;
+      confidence: number;
+      evidence_state: OperationalMemory["evidenceState"];
+      valid_from: Date | null;
+      valid_until: Date | null;
+      environment_version: string | null;
+      tool_version: string | null;
+      policy_version: string | null;
+    }>(
+      `SELECT m.id, a.external_id AS agent_external_id, m.memory_type, m.summary,
+              m.structured_context, m.confidence, m.evidence_state,
+              m.valid_from, m.valid_until, m.environment_version,
+              m.tool_version, m.policy_version
+         FROM memories m
+         JOIN agents a ON a.id=m.agent_id
+        WHERE m.id=$1`,
+      [memoryId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      agentId: row.agent_external_id,
+      memoryType: row.memory_type,
+      summary: row.summary,
+      structuredContext: row.structured_context,
+      confidence: Number(row.confidence),
+      evidenceState: row.evidence_state,
+      validFrom: row.valid_from ?? undefined,
+      validUntil: row.valid_until ?? undefined,
+      environmentVersion: row.environment_version ?? undefined,
+      toolVersion: row.tool_version ?? undefined,
+      policyVersion: row.policy_version ?? undefined,
+    };
+  }
+
+  async getRecalls(executionId: string): Promise<MemoryRecall[]> {
+    const result = await this.pool.query<{
+      id: string;
+      query: string;
+      retrieval_policy_version: string | null;
+      created_at: Date;
+      candidates: Array<{ memory_id: string; rank: number; final_score: number }>;
+    }>(
+      `SELECT mr.id, mr.query, mr.retrieval_policy_version, mr.created_at,
+              COALESCE(
+                json_agg(
+                  json_build_object(
+                    'memory_id', mrr.memory_id,
+                    'rank', mrr.rank,
+                    'final_score', mrr.final_score
+                  ) ORDER BY mrr.rank
+                ) FILTER (WHERE mrr.memory_id IS NOT NULL AND mrr.exposed_to_agent = true),
+                '[]'::JSON
+              ) AS candidates
+         FROM memory_retrievals mr
+         LEFT JOIN memory_retrieval_results mrr ON mrr.retrieval_id=mr.id
+        WHERE mr.execution_id=$1
+        GROUP BY mr.id
+        ORDER BY mr.created_at`,
+      [executionId],
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      executionId,
+      query: row.query,
+      policyVersion: row.retrieval_policy_version ?? "unknown",
+      recalledAt: row.created_at,
+      candidates: row.candidates.map((candidate) => ({
+        retrievalId: row.id,
+        memoryId: candidate.memory_id,
+        rank: Number(candidate.rank),
+        score: Number(candidate.final_score),
+      })),
+    }));
+  }
+
+  async updateRecallExposure(update: RecallExposureUpdate): Promise<void> {
+    await this.pool.query(
+      `UPDATE memory_retrieval_results
+          SET exposed_to_agent = false,
+              rejection_reasons = NULL
+        WHERE retrieval_id=$1`,
+      [update.retrievalId],
+    );
+
+    if (update.exposedMemoryIds.length) {
+      await this.pool.query(
+        `UPDATE memory_retrieval_results
+            SET exposed_to_agent = true,
+                rejection_reasons = NULL
+          WHERE retrieval_id=$1
+            AND memory_id = ANY($2::UUID[])`,
+        [update.retrievalId, update.exposedMemoryIds],
+      );
+    }
+
+    for (const rejection of update.rejected) {
+      await this.pool.query(
+        `UPDATE memory_retrieval_results
+            SET rejection_reasons=$3::JSONB
+          WHERE retrieval_id=$1 AND memory_id=$2`,
+        [update.retrievalId, rejection.memoryId, asJson(rejection.reasons)],
+      );
+    }
+  }
+
+  async recordRuntimeDecision(decision: RuntimeDecisionRecord): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO decisions (id, execution_id, decision_type, selected_action, alternatives, reasoning_summary, created_at)
+       VALUES ($1,$2,$3,$4::JSONB,$5::JSONB,$6,$7)`,
+      [
+        decision.id,
+        decision.executionId,
+        decision.decisionType,
+        asJson(decision.selectedAction),
+        asJson(decision.alternatives ?? []),
+        decision.reasoningSummary,
+        decision.decidedAt,
+      ],
+    );
+
+    for (const influence of decision.influences) {
+      await this.pool.query(
+        `INSERT INTO decision_memories
+          (decision_id, memory_id, retrieval_id, influence_type, influence_summary,
+           relevance, counterfactual_action, counterfactual_source,
+           counterfactual_evidence_state, counterfactual_explanation,
+           comparison_execution_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::JSONB,$8,$9,$10,$11)`,
+        [
+          decision.id,
+          influence.memoryId,
+          influence.retrievalId ?? null,
+          influence.influenceType,
+          influence.summary,
+          influence.relevance ?? null,
+          asJson(influence.counterfactual?.action ?? null),
+          influence.counterfactual?.source ?? null,
+          influence.counterfactual?.evidenceState ?? null,
+          influence.counterfactual?.explanation ?? null,
+          influence.counterfactual?.comparisonExecutionId ?? null,
+        ],
+      );
+    }
+  }
+
+  async appendRuntimeEvaluationEvent(event: RuntimeEvaluationEvent): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO runtime_evaluation_events (id, execution_id, event_type, payload, created_at)
+       VALUES ($1,$2,$3,$4::JSONB,$5)`,
+      [event.id, event.executionId, event.eventType, asJson(event.payload), event.createdAt],
+    );
+  }
+}
