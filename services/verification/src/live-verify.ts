@@ -32,6 +32,12 @@ function sanitizeError(error: unknown): string {
     .replace(/(api[_-]?key[=:]\s*)[^\s,;]+/gi, "$1***");
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
 async function writeEvidence(value: unknown): Promise<void> {
   await mkdir("evidence/live", { recursive: true });
   await writeFile(output, `${JSON.stringify(value, null, 2)}\n`, "utf8");
@@ -77,14 +83,24 @@ async function main() {
     if (!influenceAccepted || !influenced) throw new Error("Runtime trace does not prove accepted memory influence");
 
     verificationStage = "EXPLAIN_VECTOR_RETRIEVAL";
-    const explainEmbedding = await embeddings.embed("multi venue acquisition under thin liquidity where Venue C may fail");
+    const persistedRetrieval = trace.retrievals?.find((retrieval) => retrieval.id === demo.runB.retrievalId);
+    if (!persistedRetrieval || typeof persistedRetrieval.query !== "string") {
+      throw new Error("Runtime trace does not contain the persisted Run B retrieval query");
+    }
+    const filters = asRecord(persistedRetrieval.filters);
+    const workflowType = typeof filters.workflowType === "string" ? filters.workflowType : undefined;
+    const environmentVersion = typeof filters.environmentVersion === "string" ? filters.environmentVersion : undefined;
+    const status = Array.isArray(filters.status)
+      ? filters.status.filter((value): value is string => typeof value === "string")
+      : undefined;
+    const explainEmbedding = await embeddings.embed(persistedRetrieval.query);
     const vectorPlan = await explainEngramMemorySearch(pool, {
       agentExternalId: agentId,
       queryEmbedding: explainEmbedding,
-      workflowType: "multi_venue_execution",
-      environmentVersion: "demo-v1",
-      status: ["COMPENSATED", "FAILURE", "PARTIAL"],
-      limit: 8,
+      workflowType,
+      environmentVersion,
+      status,
+      limit: DEMO_RUNTIME_POLICIES.retrieval.maxCandidates,
     });
     const cspannIndexUsage = vectorPlan.usesVectorSearch && vectorPlan.usesCosineIndex
       ? "VERIFIED"
@@ -134,10 +150,13 @@ async function main() {
       vectorIndex: {
         expectedIndex: ENGRAM_COSINE_VECTOR_INDEX,
         naturalPlan: true,
+        explainedRetrievalId: demo.runB.retrievalId,
+        explainedQuery: persistedRetrieval.query,
+        explainedFilters: filters,
         ...vectorPlan,
         note: cspannIndexUsage === "VERIFIED"
-          ? "CockroachDB naturally selected the agent-scoped cosine vector index for the Engram retrieval query shape."
-          : "The query succeeded, but the natural optimizer plan did not prove cosine C-SPANN index use; do not promote ENG-003 from this artifact.",
+          ? "CockroachDB naturally selected the agent-scoped cosine vector index for the exact persisted Engram retrieval query shape."
+          : "The exact persisted retrieval query succeeded, but the natural optimizer plan did not prove cosine C-SPANN index use; do not promote ENG-003 from this artifact.",
       },
       invariant: {
         priorExecutionPersisted: true,
