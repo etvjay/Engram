@@ -67,6 +67,10 @@ jobs:
 
       - run: npm install
 
+      - name: Expose pinned project binaries
+        shell: bash
+        run: echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+
       - name: Build SAM application
         run: sam build
 
