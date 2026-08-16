@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { TitanEmbeddingProvider } from "../../../packages/bedrock/src/embeddings.js";
 import {
   getCockroachMcpStatus,
   inspectMemoryProvenanceViaMcp,
@@ -10,6 +9,10 @@ import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
 import { applyEngramMigrations } from "../../../packages/cockroach/src/migrations.js";
 import { CockroachMemoryRepository } from "../../../packages/cockroach/src/repository.js";
 import { ENGRAM_COSINE_VECTOR_INDEX, explainEngramMemorySearch } from "../../../packages/cockroach/src/vector-plan.js";
+import {
+  configuredEmbeddingProviderName,
+  createConfiguredEmbeddingProvider,
+} from "../../../packages/embeddings/src/provider.js";
 import { EngramRuntime } from "../../../packages/runtime/src/runtime.js";
 import { DEMO_RUNTIME_POLICIES } from "../../demo/src/runtime-policy.js";
 import { runEngramRuntimeDemo } from "../../demo/src/run-runtime-demo.js";
@@ -44,6 +47,21 @@ function firstScalar(row: Record<string, unknown> | undefined): string | null {
   return value === undefined || value === null ? null : String(value);
 }
 
+function embeddingMetadata(provider: ReturnType<typeof createConfiguredEmbeddingProvider>) {
+  const value = provider as typeof provider & {
+    region?: string;
+    location?: string;
+    projectId?: string;
+  };
+  return {
+    provider: provider.provider,
+    modelId: provider.modelId,
+    dimensions: provider.dimensions,
+    region: value.region ?? value.location ?? null,
+    projectId: value.projectId ?? null,
+  };
+}
+
 async function writeEvidence(value: unknown): Promise<void> {
   await mkdir("evidence/live", { recursive: true });
   await writeFile(output, `${JSON.stringify(value, null, 2)}\n`, "utf8");
@@ -51,9 +69,12 @@ async function writeEvidence(value: unknown): Promise<void> {
 
 async function main() {
   requireEnv("DATABASE_URL");
-  requireEnv("AWS_REGION");
-  requireEnv("COCKROACH_MCP_CLUSTER_ID");
-  requireEnv("COCKROACH_MCP_API_KEY");
+  const embeddingProfile = configuredEmbeddingProviderName();
+  if (embeddingProfile === "bedrock") requireEnv("AWS_REGION");
+  if (embeddingProfile === "vertex") {
+    requireEnv("GOOGLE_CLOUD_PROJECT");
+    requireEnv("GOOGLE_CLOUD_LOCATION");
+  }
 
   verificationStage = "CONNECT_COCKROACH";
   const pool = createCockroachPool();
@@ -76,7 +97,10 @@ async function main() {
     const rerankResult = await pool.query<Record<string, unknown>>("SHOW vector_search_rerank_multiplier");
 
     verificationStage = "RUN_RUNTIME_CAUSAL_SPINE";
-    const embeddings = new TitanEmbeddingProvider();
+    const embeddings = createConfiguredEmbeddingProvider();
+    if (embeddings.dimensions !== 1024) {
+      throw new Error(`Configured embedding provider must emit 1024 dimensions for the current Cockroach schema, received ${embeddings.dimensions}`);
+    }
     const repository = new CockroachMemoryRepository(pool, embeddings);
     const store = new AtomicCockroachRuntimeStore(pool, repository);
     const runtime = new EngramRuntime(store, DEMO_RUNTIME_POLICIES);
@@ -135,20 +159,24 @@ async function main() {
       ? "VERIFIED"
       : "UNVERIFIED";
 
-    verificationStage = "CONNECT_MANAGED_MCP";
-    const mcpStatus = await getCockroachMcpStatus();
-    if (!mcpStatus.connected) throw new Error("CockroachDB Managed MCP did not connect");
-    if (mcpStatus.missingExpectedTools.length > 0) {
-      throw new Error(`Managed MCP is missing expected tools: ${mcpStatus.missingExpectedTools.join(", ")}`);
+    let mcpStatus: Awaited<ReturnType<typeof getCockroachMcpStatus>> | null = null;
+    let mcpProvenance: Awaited<ReturnType<typeof inspectMemoryProvenanceViaMcp>> | null = null;
+    const mcpConfigured = Boolean(process.env.COCKROACH_MCP_CLUSTER_ID?.trim() && process.env.COCKROACH_MCP_API_KEY?.trim());
+    if (mcpConfigured) {
+      verificationStage = "CONNECT_MANAGED_MCP";
+      mcpStatus = await getCockroachMcpStatus();
+      if (!mcpStatus.connected) throw new Error("CockroachDB Managed MCP did not connect");
+      if (mcpStatus.missingExpectedTools.length > 0) {
+        throw new Error(`Managed MCP is missing expected tools: ${mcpStatus.missingExpectedTools.join(", ")}`);
+      }
+      verificationStage = "QUERY_MCP_PROVENANCE";
+      mcpProvenance = await inspectMemoryProvenanceViaMcp(demo.memory.id);
     }
 
-    verificationStage = "QUERY_MCP_PROVENANCE";
-    const mcpProvenance = await inspectMemoryProvenanceViaMcp(demo.memory.id);
     const completedAt = new Date().toISOString();
-
     verificationStage = "WRITE_SUCCESS_EVIDENCE";
     const evidence = {
-      schemaVersion: "engram-live-proof-v3",
+      schemaVersion: "engram-live-proof-v4",
       evidenceClass: "VERIFIED",
       verificationKind: "LIVE_EXTERNAL_INTEGRATION",
       startedAt: verificationStartedAt,
@@ -162,15 +190,15 @@ async function main() {
         cockroachSchemaAndVectorIndexPresence: "VERIFIED",
         vectorDistanceRetrieval: "VERIFIED",
         cspannCosineIndexUsage: cspannIndexUsage,
-        bedrockEmbedding: "VERIFIED",
+        embeddingProvider: "VERIFIED",
         runtimeRecallExposure: "VERIFIED",
         runtimeReconstructionAfterRecall: "VERIFIED",
         runtimeInfluenceValidation: "VERIFIED",
         counterfactualProvenance: "VERIFIED",
         decisionMemoryTrace: "VERIFIED",
         atomicEventSequencing: "VERIFIED",
-        managedMcpConnection: "VERIFIED",
-        managedMcpProvenanceQuery: "VERIFIED",
+        managedMcpConnection: mcpConfigured ? "VERIFIED" : "UNKNOWN",
+        managedMcpProvenanceQuery: mcpConfigured ? "VERIFIED" : "UNKNOWN",
       },
       cockroach: {
         serverVersion: versionResult.rows[0]?.version ?? null,
@@ -183,11 +211,9 @@ async function main() {
           rerankMultiplier: firstScalar(rerankResult.rows[0]),
         },
       },
-      bedrock: {
-        provider: embeddings.provider,
-        modelId: embeddings.modelId,
-        region: embeddings.region,
-        dimensions: embeddings.dimensions,
+      embedding: {
+        profile: embeddingProfile,
+        ...embeddingMetadata(embeddings),
       },
       vectorIndex: {
         expectedIndex: ENGRAM_COSINE_VECTOR_INDEX,
@@ -210,6 +236,7 @@ async function main() {
       },
       demo,
       mcp: {
+        configured: mcpConfigured,
         status: mcpStatus,
         provenance: mcpProvenance,
       },
@@ -220,13 +247,15 @@ async function main() {
     console.log(JSON.stringify({
       ok: true,
       output,
+      embeddingProfile,
+      embeddingModelId: embeddings.modelId,
       memoryId: demo.memory.id,
       runA: demo.runA.executionId,
       runB: demo.runB.executionId,
       runtimeReconstructedAfterRecall: demo.runtimeReconstructedAfterRecall,
       runtimeInfluenceVerified: true,
       cspannIndexUsage,
-      bedrockModelId: embeddings.modelId,
+      mcpConfigured,
     }));
   } finally {
     await pool.end();
@@ -238,13 +267,14 @@ main().catch(async (error) => {
   console.error(message);
   try {
     await writeEvidence({
-      schemaVersion: "engram-live-proof-v3",
+      schemaVersion: "engram-live-proof-v4",
       evidenceClass: "UNKNOWN",
       verificationKind: "LIVE_EXTERNAL_INTEGRATION_FAILED",
       startedAt: verificationStartedAt,
       completedAt: new Date().toISOString(),
       commitSha: process.env.GITHUB_SHA ?? null,
       githubRunId: process.env.GITHUB_RUN_ID ?? null,
+      embeddingProfile: process.env.ENGRAM_EMBEDDING_PROVIDER ?? "bedrock",
       failure: {
         stage: verificationStage,
         message,
@@ -255,7 +285,7 @@ main().catch(async (error) => {
         cockroachSchemaAndVectorIndexPresence: "UNKNOWN",
         vectorDistanceRetrieval: "UNKNOWN",
         cspannCosineIndexUsage: "UNKNOWN",
-        bedrockEmbedding: "UNKNOWN",
+        embeddingProvider: "UNKNOWN",
         runtimeRecallExposure: "UNKNOWN",
         runtimeReconstructionAfterRecall: "UNKNOWN",
         runtimeInfluenceValidation: "UNKNOWN",

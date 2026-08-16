@@ -2,21 +2,36 @@ name: Engram Live Verification
 
 on:
   workflow_dispatch:
+    inputs:
+      embedding_provider:
+        description: Embedding provider used for the live proof
+        required: true
+        default: vertex
+        type: choice
+        options:
+          - vertex
+          - bedrock
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   verify:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
+      ENGRAM_EMBEDDING_PROVIDER: ${{ inputs.embedding_provider }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
       BEDROCK_EMBEDDING_MODEL: ${{ secrets.BEDROCK_EMBEDDING_MODEL || 'amazon.titan-embed-text-v2:0' }}
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+      GOOGLE_CLOUD_LOCATION: ${{ secrets.GOOGLE_CLOUD_LOCATION || 'us-central1' }}
+      VERTEX_EMBEDDING_MODEL: ${{ secrets.VERTEX_EMBEDDING_MODEL || 'gemini-embedding-001' }}
+      VERTEX_EMBEDDING_DIMENSIONS: '1024'
       COCKROACH_MCP_URL: https://cockroachlabs.cloud/mcp
       COCKROACH_MCP_CLUSTER_ID: ${{ secrets.COCKROACH_MCP_CLUSTER_ID }}
       COCKROACH_MCP_API_KEY: ${{ secrets.COCKROACH_MCP_API_KEY }}
@@ -29,11 +44,29 @@ jobs:
         with:
           node-version: 22
 
-      - name: Verify required secrets are present
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        if: inputs.embedding_provider == 'vertex'
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Verify required configuration
         shell: bash
         run: |
           set -euo pipefail
-          required=(DATABASE_URL AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY COCKROACH_MCP_CLUSTER_ID COCKROACH_MCP_API_KEY)
+          required=(DATABASE_URL)
+          if [[ "$ENGRAM_EMBEDDING_PROVIDER" == "bedrock" ]]; then
+            required+=(AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY)
+          elif [[ "$ENGRAM_EMBEDDING_PROVIDER" == "vertex" ]]; then
+            required+=(GOOGLE_CLOUD_PROJECT GOOGLE_CLOUD_LOCATION)
+          else
+            echo "::error::Unsupported ENGRAM_EMBEDDING_PROVIDER=$ENGRAM_EMBEDDING_PROVIDER"
+            exit 1
+          fi
           missing=0
           for name in "${required[@]}"; do
             if [[ -z "${!name:-}" ]]; then
@@ -48,14 +81,14 @@ jobs:
       - run: npm install
       - run: npm run build
 
-      - name: Run live persistence, vector, Bedrock, and MCP proof
+      - name: Run live Cockroach causal-spine proof
         run: node dist/services/verification/src/live-verify.js
 
       - name: Upload verification evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: engram-live-verification-${{ github.run_id }}
+          name: engram-live-verification-${{ inputs.embedding_provider }}-${{ github.run_id }}
           path: evidence/live/
           if-no-files-found: warn
           retention-days: 30
