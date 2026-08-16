@@ -1,7 +1,8 @@
+import type { EvidenceState } from "../../core/src/protocol.js";
 import type { OperationalMemory } from "../../memory-core/src/domain.js";
 import type { AdmissionSignal, RuntimeExecutionRecord, RuntimePolicyBundle } from "./types.js";
 
-const EVIDENCE_RANK: Record<OperationalMemory["evidenceState"], number> = {
+const EVIDENCE_RANK: Record<EvidenceState, number> = {
   UNKNOWN: 0,
   PROPOSED: 1,
   INFERRED: 2,
@@ -9,6 +10,10 @@ const EVIDENCE_RANK: Record<OperationalMemory["evidenceState"], number> = {
   OBSERVED: 4,
   VERIFIED: 5,
 };
+
+export function evidenceRank(state: EvidenceState): number {
+  return EVIDENCE_RANK[state];
+}
 
 export function evaluateRecallCandidate(
   memory: OperationalMemory,
@@ -91,6 +96,7 @@ export function evaluateInfluenceMemory(
 export function evaluateAdmissionSignal(
   signal: AdmissionSignal,
   policies: RuntimePolicyBundle,
+  admittingEvidenceState?: EvidenceState,
 ): string[] {
   const reasons: string[] = [];
   if (!policies.admission.admitOn.includes(signal.kind)) {
@@ -98,6 +104,12 @@ export function evaluateAdmissionSignal(
   }
   if (EVIDENCE_RANK[signal.evidenceState] < EVIDENCE_RANK[policies.admission.minimumEvidence]) {
     reasons.push("EVIDENCE_BELOW_ADMISSION_THRESHOLD");
+  }
+  if (
+    admittingEvidenceState !== undefined &&
+    EVIDENCE_RANK[signal.evidenceState] > EVIDENCE_RANK[admittingEvidenceState]
+  ) {
+    reasons.push("MEMORY_EVIDENCE_EXCEEDS_EXECUTION_EVIDENCE");
   }
   return reasons;
 }
