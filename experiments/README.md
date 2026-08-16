@@ -18,6 +18,7 @@ Experiment IDs are unique repository-wide. Before creating a new experiment dire
 | EXP-012 | `EXP-012-repeated-handoff-pattern` | Can multiple successful executions jointly support a repeated-pattern memory whose exact source lineage changes a later comparable handoff? |
 | EXP-013 | `EXP-013-memory-invalidation-supersession` | Can historically valid but obsolete or explicitly superseded memory lose current action authority without deleting history? |
 | EXP-014 | `EXP-014-context-completeness-authority` | Can version-bound memory fail closed when a future execution omits the environment/tool metadata required to establish compatibility? |
+| EXP-015 | `EXP-015-provenance-authenticity` | Can a memory that claims source execution provenance be prevented from exposure or influence when that lineage is missing, foreign-agent, contradictory or no longer resolvable? |
 
 ## Evidence discipline
 
@@ -29,4 +30,4 @@ Experiment execution may be SIMULATED while memory/runtime/storage evidence is c
 
 ## Next ID
 
-The next unclaimed experiment ID is `EXP-015`.
+The next unclaimed experiment ID is `EXP-016`.
