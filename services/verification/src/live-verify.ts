@@ -72,7 +72,7 @@ async function main() {
     };
 
     await mkdir("evidence/live", { recursive: true });
-    const output = "evidence/live/live-verification.json";
+    const output = "evidence/live/latest.json";
     await writeFile(output, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
     console.log(JSON.stringify({ ok: true, output, memoryId: demo.memory.id, runA: demo.runA.executionId, runB: demo.runB.executionId }));
   } finally {
