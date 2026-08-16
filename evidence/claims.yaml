@@ -29,8 +29,12 @@ claims:
     state: IMPLEMENTED
     evidence:
       - db/migrations/001_initial.sql
+      - db/migrations/005_cosine_vector_index.sql
       - packages/cockroach/src/memory.ts
-    promotion_condition: Successful live verification artifact plus query-plan evidence demonstrating the CockroachDB vector index is used by the live retrieval path.
+      - packages/cockroach/src/vector-plan.ts
+      - services/verification/src/live-verify.ts
+    boundary: Automated code now captures the natural EXPLAIN plan and distinguishes successful cosine vector-distance retrieval from actual C-SPANN cosine-index selection.
+    promotion_condition: Successful live verification artifact where vectorIndex.usesVectorSearch and vectorIndex.usesCosineIndex prove that CockroachDB selected memories_embedding_cosine_idx for the live retrieval query shape.
 
   - id: ENG-004
     claim: Amazon Bedrock Titan Embeddings V2 supplies Engram memory/query embeddings.
@@ -74,13 +78,15 @@ claims:
     boundary: The workload is intentionally SIMULATED. Persistence, retrieval, provenance, runtime influence validation, and cloud integrations may be promoted independently.
 
   - id: ENG-009
-    claim: Engram has a reproducible live-verification path for the runtime causal spine and external CockroachDB, Bedrock, and Managed MCP integrations.
+    claim: Engram has a reproducible live-verification path for the runtime causal spine and external CockroachDB, Bedrock, Managed MCP, and vector-plan evidence.
     state: TESTED
     evidence:
       - services/verification/src/live-verify.ts
       - packages/cockroach/src/migrations.ts
+      - packages/cockroach/src/vector-plan.ts
       - .github/workflows/live-verification.yml
-      - GitHub Actions Engram CI run 31921774367
+      - GitHub Actions Engram CI run 31922542963
+    boundary: The verifier writes a sanitized UNKNOWN artifact on failure and separates vector-query success from C-SPANN index selection.
     promotion_condition: Manually dispatch Engram Live Verification with required CockroachDB, AWS, and MCP secrets; successful execution must emit evidence/live/latest.json.
 
   - id: ENG-010
@@ -131,23 +137,37 @@ claims:
     boundary: Structural adapter conformance is tested; live framework applications are not yet part of external verification.
 
   - id: ENG-014
-    claim: Engram provides read-focused control-plane views over agents, executions, memories, influences, and policy state.
-    state: IMPLEMENTED
+    claim: Engram provides read-focused control-plane views over agents, executions, memories, influences, policy state, and evidence-safe memory evaluation.
+    state: TESTED
     evidence:
       - packages/control-plane/src/store.ts
       - packages/cockroach/src/control-plane.ts
       - services/api/src/handler.ts
       - template.yaml
-    promotion_condition: Current aggregate CI must pass after API wiring; public deployment must successfully serve control-plane reads before LIVE VERIFIED.
+      - tests/conformance/api-contract.test.ts
+      - GitHub Actions Engram CI run 31922542963
+    boundary: Handler/SAM contract and routing behavior are automated; public AWS deployment is not yet verified.
 
   - id: ENG-015
     claim: Engram distinguishes memory usefulness evidence from mere retrieval or later success through explicit evaluations, relationships, and counterfactual experiments.
-    state: IMPLEMENTED
+    state: TESTED
     evidence:
       - packages/evaluation/src/domain.ts
       - packages/evaluation/src/store.ts
       - packages/evaluation/src/quality.ts
       - packages/cockroach/src/evaluation-store.ts
-      - db/migrations/004_evaluation.sql
+      - db/migrations/004_memory_evaluation.sql
       - tests/evaluation
-    promotion_condition: Current aggregate CI must pass; controlled evaluation evidence is required before individual memories are labeled beneficial or harmful.
+      - tests/conformance/api-contract.test.ts
+      - GitHub Actions Engram CI run 31922542963
+    boundary: Controlled evaluation evidence is required before individual memories are labeled beneficial or harmful; the control-plane response preserves this interpretation boundary.
+
+  - id: ENG-016
+    claim: Engram can allocate execution-event sequence numbers through a store-side atomic allocator rather than deriving them from trace length.
+    state: TESTED
+    evidence:
+      - packages/cockroach/src/atomic-runtime-store.ts
+      - db/migrations/005_atomic_event_sequence.sql
+      - tests/runtime/atomic-event-sequence.test.ts
+      - GitHub Actions Engram CI run 31922542963
+    boundary: Automated runtime behavior is tested; concurrent live/load execution against CockroachDB remains unverified.
