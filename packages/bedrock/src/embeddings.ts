@@ -3,12 +3,17 @@ import type { EmbeddingProvider } from "../../memory-core/src/domain.js";
 
 export class TitanEmbeddingProvider implements EmbeddingProvider {
   readonly dimensions = 1024;
+  readonly provider = "AWS_BEDROCK" as const;
+  readonly modelId: string;
+  readonly region: string;
   private readonly client: BedrockRuntimeClient;
 
   constructor(
     region = process.env.AWS_REGION ?? "us-east-1",
-    private readonly modelId = process.env.BEDROCK_EMBEDDING_MODEL ?? "amazon.titan-embed-text-v2:0",
+    modelId = process.env.BEDROCK_EMBEDDING_MODEL ?? "amazon.titan-embed-text-v2:0",
   ) {
+    this.region = region;
+    this.modelId = modelId;
     this.client = new BedrockRuntimeClient({ region });
   }
 
