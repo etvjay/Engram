@@ -13,10 +13,27 @@ import { EngramRuntime } from "../../../packages/runtime/src/runtime.js";
 import { DEMO_RUNTIME_POLICIES } from "../../demo/src/runtime-policy.js";
 import { runEngramRuntimeDemo } from "../../demo/src/run-runtime-demo.js";
 
+let verificationStage = "PREFLIGHT";
+const verificationStartedAt = new Date().toISOString();
+const output = "evidence/live/latest.json";
+
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required for live verification`);
   return value;
+}
+
+function sanitizeError(error: unknown): string {
+  const raw = error instanceof Error ? error.stack ?? error.message : String(error);
+  return raw
+    .replace(/(postgres(?:ql)?:\/\/)[^\s:@/]+:[^\s@/]+@/gi, "$1***:***@")
+    .replace(/(authorization:\s*bearer\s+)[^\s]+/gi, "$1***")
+    .replace(/(api[_-]?key[=:]\s*)[^\s,;]+/gi, "$1***");
+}
+
+async function writeEvidence(value: unknown): Promise<void> {
+  await mkdir("evidence/live", { recursive: true });
+  await writeFile(output, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
 async function main() {
@@ -25,11 +42,14 @@ async function main() {
   requireEnv("COCKROACH_MCP_CLUSTER_ID");
   requireEnv("COCKROACH_MCP_API_KEY");
 
-  const startedAt = new Date().toISOString();
+  verificationStage = "CONNECT_COCKROACH";
   const pool = createCockroachPool();
 
   try {
+    verificationStage = "APPLY_MIGRATIONS";
     const appliedMigrations = await applyEngramMigrations(pool);
+
+    verificationStage = "RUN_RUNTIME_CAUSAL_SPINE";
     const repository = new CockroachMemoryRepository(pool, new TitanEmbeddingProvider());
     const store = new CockroachRuntimeStore(pool, repository);
     const runtime = new EngramRuntime(store, DEMO_RUNTIME_POLICIES);
@@ -41,6 +61,7 @@ async function main() {
     if (demo.runB.outcome !== "SUCCESS") throw new Error(`Unexpected Run B outcome: ${demo.runB.outcome}`);
     if (!demo.runB.memoryRefs.includes(demo.memory.id)) throw new Error("Run B does not reference the memory produced by Run A");
 
+    verificationStage = "VERIFY_RUNTIME_TRACE";
     const trace = demo.trace as {
       retrievals?: Array<Record<string, unknown>>;
       decisions?: Array<{ memory_influences?: Array<Record<string, unknown>> }>;
@@ -53,20 +74,23 @@ async function main() {
     if (!recallCompleted) throw new Error("Runtime trace does not contain a persisted recall evaluation");
     if (!influenceAccepted || !influenced) throw new Error("Runtime trace does not prove accepted memory influence");
 
+    verificationStage = "CONNECT_MANAGED_MCP";
     const mcpStatus = await getCockroachMcpStatus();
     if (!mcpStatus.connected) throw new Error("CockroachDB Managed MCP did not connect");
     if (mcpStatus.missingExpectedTools.length > 0) {
       throw new Error(`Managed MCP is missing expected tools: ${mcpStatus.missingExpectedTools.join(", ")}`);
     }
 
+    verificationStage = "QUERY_MCP_PROVENANCE";
     const mcpProvenance = await inspectMemoryProvenanceViaMcp(demo.memory.id);
     const completedAt = new Date().toISOString();
 
+    verificationStage = "WRITE_SUCCESS_EVIDENCE";
     const evidence = {
       schemaVersion: "engram-live-proof-v2",
       evidenceClass: "VERIFIED",
       verificationKind: "LIVE_EXTERNAL_INTEGRATION",
-      startedAt,
+      startedAt: verificationStartedAt,
       completedAt,
       commitSha: process.env.GITHUB_SHA ?? null,
       githubRunId: process.env.GITHUB_RUN_ID ?? null,
@@ -97,9 +121,8 @@ async function main() {
       },
     };
 
-    await mkdir("evidence/live", { recursive: true });
-    const output = "evidence/live/latest.json";
-    await writeFile(output, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
+    await writeEvidence(evidence);
+    verificationStage = "COMPLETE";
     console.log(JSON.stringify({
       ok: true,
       output,
@@ -113,8 +136,37 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.stack ?? error.message : String(error);
+main().catch(async (error) => {
+  const message = sanitizeError(error);
   console.error(message);
+  try {
+    await writeEvidence({
+      schemaVersion: "engram-live-proof-v2",
+      evidenceClass: "UNKNOWN",
+      verificationKind: "LIVE_EXTERNAL_INTEGRATION_FAILED",
+      startedAt: verificationStartedAt,
+      completedAt: new Date().toISOString(),
+      commitSha: process.env.GITHUB_SHA ?? null,
+      githubRunId: process.env.GITHUB_RUN_ID ?? null,
+      failure: {
+        stage: verificationStage,
+        message,
+      },
+      boundaries: {
+        externalVenueExecution: "SIMULATED",
+        cockroachPersistence: "UNKNOWN",
+        distributedVectorRetrieval: "UNKNOWN",
+        bedrockEmbedding: "UNKNOWN",
+        runtimeRecallExposure: "UNKNOWN",
+        runtimeInfluenceValidation: "UNKNOWN",
+        counterfactualProvenance: "UNKNOWN",
+        decisionMemoryTrace: "UNKNOWN",
+        managedMcpConnection: "UNKNOWN",
+        managedMcpProvenanceQuery: "UNKNOWN",
+      },
+    });
+  } catch (artifactError) {
+    console.error(`Failed to persist verification failure artifact: ${sanitizeError(artifactError)}`);
+  }
   process.exitCode = 1;
 });
