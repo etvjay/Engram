@@ -1,14 +1,16 @@
 # EXP-009 — Findings
 
 Date: 2026-08-16
-Evidence run: GitHub Actions Engram CI `31935785267`
-Scenario results: **PASS**
-Aggregate repository result: failed only on evidence-registry completeness because EXP-009 had not yet been registered and lacked findings/decision at that checkpoint.
+Evidence runs:
+- scenario proof: GitHub Actions Engram CI `31935785267`
+- completed registry + aggregate acceptance: GitHub Actions Engram CI `31935842159`
+Result: **PASS**
 
-## Passed automated proofs
+## Automated proofs
 
-- `tests/scenarios/operator-safety-memory.test.ts` — 3/3 passed.
-- `tests/e2e/human-correction-memory.test.ts` — 1/1 passed.
+- `tests/scenarios/operator-safety-memory.test.ts` — scope/applicability controls.
+- `tests/e2e/human-correction-memory.test.ts` — full EngramRuntime source/control/treatment causal lifecycle.
+- `tests/conformance/evidence-registry.test.ts` — canonical experiment/evidence integrity.
 
 ## Findings
 
@@ -32,4 +34,4 @@ The causal spine is:
 
 ## Boundary
 
-The maintenance workload is deterministic and **SIMULATED**. The test proves runtime memory/provenance behavior, not live infrastructure modification. The repository-level acceptance is finalized only after the evidence registry is updated and the full aggregate suite passes.
+The maintenance workload is deterministic and **SIMULATED**. Runtime memory/provenance and evidence-registry integrity are TESTED. Live operator/infrastructure integration remains externally UNVERIFIED.
