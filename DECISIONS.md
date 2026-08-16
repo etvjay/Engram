@@ -103,3 +103,15 @@ Semantic proximity can nominate memories for review but cannot establish contrad
 **Status:** ACCEPTED
 
 The initial control-plane API exposes agents, executions, memories, influences, policies, assignments, and evaluation dossiers. Policy mutation and evaluation writes remain outside the public HTTP surface until authentication, authorization, and audit semantics are explicit.
+
+## D-018 — Production vector retrieval is agent-scoped and distance-matched
+
+**Status:** ACCEPTED
+
+Engram's production retrieval predicate is scoped by agent identity and ranks candidates with cosine distance (`<=>`). The production CockroachDB vector index therefore prefixes `agent_id` and uses `vector_cosine_ops`. Query success is not accepted as proof that C-SPANN served the query: live verification must capture a natural optimizer plan and separately report vector-distance retrieval and index selection.
+
+## D-019 — Inspection surfaces fail closed
+
+**Status:** ACCEPTED
+
+Execution traces, control-plane reads, memory search, and MCP/provenance inspection expose operational history and therefore require explicit bearer-token authorization. If `ENGRAM_INSPECTION_TOKEN` is not configured, these inspection routes fail closed rather than silently becoming public. `/health` remains public. This token is an MVP inspection boundary, not a claim of complete multi-tenant identity or authorization.
