@@ -312,6 +312,7 @@ export class EngramRuntime {
       const reasons = evaluateInfluenceMemory(memory, execution, policies);
       if (memory.agentId !== execution.agentId) reasons.push("MEMORY_AGENT_MISMATCH");
       reasons.push(...await this.validateMemorySourceLineage(memory));
+      reasons.push(...await this.validateCounterfactualComparison(execution, influence));
       if (this.eligibilityAdvisor) {
         reasons.push(...await this.eligibilityAdvisor.evaluate({
           stage: "INFLUENCE",
@@ -330,6 +331,31 @@ export class EngramRuntime {
         throw new Error(`Memory ${memory.id} is not eligible to influence this execution: ${reasons.join(", ")}`);
       }
     }
+  }
+
+  private async validateCounterfactualComparison(
+    execution: RuntimeExecutionRecord,
+    influence: MemoryInfluence,
+  ): Promise<string[]> {
+    const counterfactual = influence.counterfactual;
+    if (!counterfactual) return [];
+    if (!["CONTROL_RUN", "SHADOW_RUN", "REPLAY"].includes(counterfactual.source)) return [];
+
+    const comparisonExecutionId = counterfactual.comparisonExecutionId;
+    if (!comparisonExecutionId) return ["COUNTERFACTUAL_COMPARISON_EXECUTION_REQUIRED"];
+    if (comparisonExecutionId === execution.id) return ["COUNTERFACTUAL_COMPARISON_EXECUTION_SELF_REFERENCE"];
+
+    const comparison = await this.store.getExecution(comparisonExecutionId);
+    if (!comparison) return [`COUNTERFACTUAL_COMPARISON_EXECUTION_NOT_FOUND:${comparisonExecutionId}`];
+
+    const reasons: string[] = [];
+    if (comparison.agentId !== execution.agentId) {
+      reasons.push(`COUNTERFACTUAL_COMPARISON_AGENT_MISMATCH:${comparisonExecutionId}`);
+    }
+    if (comparison.status === "RUNNING" || comparison.status === "MEMORY_UNAVAILABLE") {
+      reasons.push(`COUNTERFACTUAL_COMPARISON_EXECUTION_INCOMPLETE:${comparisonExecutionId}`);
+    }
+    return reasons;
   }
 
   private async validateMemorySourceLineage(memory: OperationalMemory): Promise<string[]> {
