@@ -29,9 +29,9 @@ async function withEnv<T>(name: string, value: string | undefined, fn: () => Pro
 }
 
 describe("Engram API contract", () => {
-  it("serves health without requiring database or inspection-token configuration", async () => {
+  it("serves health without requiring database or API-token configuration", async () => {
     await withEnv("DATABASE_URL", undefined, async () => {
-      await withEnv("ENGRAM_INSPECTION_TOKEN", undefined, async () => {
+      await withEnv("ENGRAM_API_TOKEN", undefined, async () => {
         const result = await handler(event("GET", "/health"));
         expect(result.statusCode).toBe(200);
         const body = JSON.parse(result.body) as {
@@ -47,27 +47,34 @@ describe("Engram API contract", () => {
     });
   });
 
-  it("returns 404 for unknown routes without initializing CockroachDB", async () => {
+  it("authenticates unknown v1 routes before returning 404", async () => {
     await withEnv("DATABASE_URL", undefined, async () => {
-      const result = await handler(event("GET", "/v1/not-a-route"));
-      expect(result.statusCode).toBe(404);
-      expect(JSON.parse(result.body)).toMatchObject({ error: "NOT_FOUND" });
-    });
-  });
-
-  it("fails closed when an inspection route has no configured token", async () => {
-    await withEnv("DATABASE_URL", undefined, async () => {
-      await withEnv("ENGRAM_INSPECTION_TOKEN", undefined, async () => {
-        const result = await handler(event("GET", "/v1/control-plane/overview"));
-        expect(result.statusCode).toBe(503);
-        expect(JSON.parse(result.body)).toEqual({ error: "INSPECTION_AUTH_NOT_CONFIGURED" });
+      await withEnv("ENGRAM_API_TOKEN", "api-token", async () => {
+        const result = await handler(event(
+          "GET",
+          "/v1/not-a-route",
+          undefined,
+          { authorization: "Bearer api-token" },
+        ));
+        expect(result.statusCode).toBe(404);
+        expect(JSON.parse(result.body)).toMatchObject({ error: "NOT_FOUND" });
       });
     });
   });
 
-  it("rejects an incorrect inspection bearer token before database access", async () => {
+  it("fails closed when a protected v1 route has no configured API token", async () => {
     await withEnv("DATABASE_URL", undefined, async () => {
-      await withEnv("ENGRAM_INSPECTION_TOKEN", "correct-token", async () => {
+      await withEnv("ENGRAM_API_TOKEN", undefined, async () => {
+        const result = await handler(event("GET", "/v1/control-plane/overview"));
+        expect(result.statusCode).toBe(503);
+        expect(JSON.parse(result.body)).toEqual({ error: "API_AUTH_NOT_CONFIGURED" });
+      });
+    });
+  });
+
+  it("rejects an incorrect API bearer token before database access", async () => {
+    await withEnv("DATABASE_URL", undefined, async () => {
+      await withEnv("ENGRAM_API_TOKEN", "correct-token", async () => {
         const result = await handler(event(
           "GET",
           "/v1/control-plane/overview",
@@ -82,12 +89,12 @@ describe("Engram API contract", () => {
 
   it("validates control-plane UUID filters after valid authorization but before database access", async () => {
     await withEnv("DATABASE_URL", undefined, async () => {
-      await withEnv("ENGRAM_INSPECTION_TOKEN", "inspection-token", async () => {
+      await withEnv("ENGRAM_API_TOKEN", "api-token", async () => {
         const result = await handler(event(
           "GET",
           "/v1/control-plane/executions",
           { agentId: "not-a-uuid" },
-          { Authorization: "Bearer inspection-token" },
+          { Authorization: "Bearer api-token" },
         ));
         expect(result.statusCode).toBe(400);
         expect(JSON.parse(result.body)).toMatchObject({ error: "INVALID_REQUEST" });
@@ -95,7 +102,7 @@ describe("Engram API contract", () => {
     });
   });
 
-  it("keeps SAM routes and inspection-token deployment configuration aligned", async () => {
+  it("keeps SAM routes and API-token deployment configuration aligned", async () => {
     const template = await readFile(new URL("../../template.yaml", import.meta.url), "utf8");
     for (const route of [
       "/v1/control-plane/overview",
@@ -110,8 +117,8 @@ describe("Engram API contract", () => {
     ]) {
       expect(template).toContain(route);
     }
-    expect(template).toContain("InspectionToken:");
-    expect(template).toContain("ENGRAM_INSPECTION_TOKEN: !Ref InspectionToken");
+    expect(template).toContain("ApiToken:");
+    expect(template).toContain("ENGRAM_API_TOKEN: !Ref ApiToken");
     expect(template).not.toContain("/v1/control/overview");
   });
 });
