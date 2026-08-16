@@ -61,6 +61,18 @@ class EngramClientTests(unittest.TestCase):
             ],
         )
 
+    def test_api_token_adds_bearer_header(self):
+        transport = FakeTransport()
+        client = Engram("https://engram.example", api_token="python-secret", request_fn=transport)
+        client.start_execution(
+            agentId="python-agent",
+            workflowType="deployment",
+            intent="Deploy safely",
+            context={},
+            constraints={},
+        )
+        self.assertEqual(transport.calls[0][3]["authorization"], "Bearer python-secret")
+
 
 if __name__ == "__main__":
     unittest.main()
