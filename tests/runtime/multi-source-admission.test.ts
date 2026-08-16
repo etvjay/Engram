@@ -226,4 +226,79 @@ describe("multi-source memory admission provenance", () => {
       `MEMORY_EVIDENCE_EXCEEDS_SOURCE_EVIDENCE:${observedSource.executionId}`,
     );
   });
+
+  it("accepts OBSERVED memory when mixed source evidence is OBSERVED and VERIFIED", async () => {
+    const store = new MultiSourceStore();
+    const runtime = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
+    const observedSource = await runtime.startExecution(context("coord-agent"));
+    await completeWithoutMemory(runtime, observedSource.executionId, "OBSERVED");
+    const admitting = await runtime.startExecution(context("coord-agent"));
+
+    const completed = await runtime.complete({
+      executionId: admitting.executionId,
+      status: "SUCCESS",
+      summary: "The weaker source establishes the correct conservative ceiling.",
+      evidenceState: "VERIFIED",
+      admissionSignals: [{
+        kind: "REPEATED_PATTERN",
+        summary: "Mixed-strength source set supports only an observed memory claim.",
+        evidenceState: "OBSERVED",
+        sourceExecutionIds: [observedSource.executionId, admitting.executionId],
+      }],
+    });
+
+    expect(completed.rejectedSignals).toEqual([]);
+    expect(completed.admittedMemories).toHaveLength(1);
+    expect(completed.admittedMemories[0]?.evidenceState).toBe("OBSERVED");
+  });
+
+  it("accepts VERIFIED memory when every declared supporting outcome is VERIFIED", async () => {
+    const store = new MultiSourceStore();
+    const runtime = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
+    const verifiedSource = await runtime.startExecution(context("coord-agent"));
+    await completeWithoutMemory(runtime, verifiedSource.executionId, "VERIFIED");
+    const admitting = await runtime.startExecution(context("coord-agent"));
+
+    const completed = await runtime.complete({
+      executionId: admitting.executionId,
+      status: "SUCCESS",
+      summary: "Every supporting execution is verified.",
+      evidenceState: "VERIFIED",
+      admissionSignals: [{
+        kind: "REPEATED_PATTERN",
+        summary: "Verified support remains verified without escalation.",
+        evidenceState: "VERIFIED",
+        sourceExecutionIds: [verifiedSource.executionId, admitting.executionId],
+      }],
+    });
+
+    expect(completed.rejectedSignals).toEqual([]);
+    expect(completed.admittedMemories).toHaveLength(1);
+    expect(completed.admittedMemories[0]?.evidenceState).toBe("VERIFIED");
+  });
+
+  it("fails closed when a declared historical source has no persisted outcome evidence", async () => {
+    const store = new MultiSourceStore();
+    const runtime = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
+    const incompleteSource = await runtime.startExecution(context("coord-agent"));
+    const admitting = await runtime.startExecution(context("coord-agent"));
+
+    const completed = await runtime.complete({
+      executionId: admitting.executionId,
+      status: "SUCCESS",
+      summary: "A missing supporting outcome cannot grant evidence authority.",
+      evidenceState: "OBSERVED",
+      admissionSignals: [{
+        kind: "REPEATED_PATTERN",
+        summary: "Incomplete history must fail closed.",
+        evidenceState: "OBSERVED",
+        sourceExecutionIds: [incompleteSource.executionId, admitting.executionId],
+      }],
+    });
+
+    expect(completed.admittedMemories).toEqual([]);
+    expect(completed.rejectedSignals[0]?.reasons).toContain(
+      `SOURCE_EXECUTION_OUTCOME_NOT_FOUND:${incompleteSource.executionId}`,
+    );
+  });
 });
