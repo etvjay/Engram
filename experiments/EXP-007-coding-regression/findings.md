@@ -1,27 +1,34 @@
-# EXP-007 Findings
+# EXP-007 — Findings
 
-## Evidence run
+Date: 2026-08-16
+Evidence run: GitHub Actions Engram CI `31935273665`
+Result: **PASS**
 
-GitHub Actions Engram CI run `31935273665`.
+## Automated proofs
 
-Result: **PASS**.
-
-The full repository check completed successfully, including `tests/scenarios/coding-memory.test.ts`.
+- `tests/scenarios/coding-memory.test.ts` — workload applicability and negative controls.
+- `tests/e2e/coding-regression-memory.test.ts` — full EngramRuntime source/control/treatment causal lifecycle.
 
 ## Findings
 
-1. Without applicable memory, the coding application selects `PATCH_FIRST`.
-2. For implicit behavior in the deterministic simulator, patch-first produces `BEHAVIORAL_REGRESSION`, patch reversion, and a `COMPENSATED` outcome.
-3. Applicable prior regression memory changes the application strategy to `REGRESSION_TEST_THEN_PATCH`.
-4. The changed decision records the exact memory ID and `PATCH_FIRST` memory-free counterfactual.
-5. Treatment succeeds with a regression test added.
-6. A very high-scoring prior regression from another subsystem does not change action.
-7. A prior implicit-behavior failure does not automatically constrain a current explicit/well-tested behavior modification.
+1. Source execution begins without relevant memory and selects `PATCH_FIRST`.
+2. The simulated implicit-behavior patch produces `BEHAVIORAL_REGRESSION`, `REVERT_PATCH`, and a `COMPENSATED` outcome.
+3. Engram observes the regression/recovery and admits an Operational Memory describing the comparable parser failure and preferred test-first methodology.
+4. A same-context control deliberately omits recall, repeats `PATCH_FIRST`, and reproduces the regression.
+5. Treatment recalls the admitted source memory and the coding application changes to `REGRESSION_TEST_THEN_PATCH`.
+6. Engram records the exact retrieval, `CHANGED_ACTION`, and the real control execution as `CONTROL_RUN` counterfactual provenance.
+7. Treatment succeeds with a regression test added.
+8. The treatment trace contains a successful outcome and an accepted influence edge.
+9. Workload-level negative controls show that very high retrieval score still cannot change action when subsystem or behavior class differs.
 
 ## Interpretation
 
-The coding scenario shows that execution memory can alter an agent's work methodology rather than merely choosing a different endpoint or route. It also reinforces that retrieval score is not authority: applicability depends on the operational conditions that made the prior experience meaningful.
+Execution Memory can change an autonomous system's **work methodology**, not merely its destination, provider, or route. The stronger E2E demonstrates the same causal spine as deployment and incident recovery:
+
+`source execution → admitted memory → memory-free control → treatment recall → changed-action provenance → observed outcome`
+
+Retrieval score remains insufficient authority; operational applicability is still required.
 
 ## Boundary
 
-The coding executor is deterministic and SIMULATED. This result does not prove a live repository-writing coding agent integration.
+The coding executor is deterministic and **SIMULATED**. Runtime lifecycle and provenance are tested; a live repository-writing coding-agent integration is not claimed.
