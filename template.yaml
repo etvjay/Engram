@@ -13,11 +13,11 @@ Parameters:
   BedrockEmbeddingModel:
     Type: String
     Default: amazon.titan-embed-text-v2:0
-  InspectionToken:
+  ApiToken:
     Type: String
     NoEcho: true
     Default: ''
-    Description: Bearer token required by memory inspection, trace, control-plane, and MCP inspection routes.
+    Description: Bearer token required by all non-demo /v1 API routes.
   CockroachMcpClusterId:
     Type: String
     Default: ''
@@ -44,7 +44,7 @@ Globals:
         DATABASE_URL: !Ref DatabaseUrl
         CORS_ORIGIN: !Ref CorsOrigin
         BEDROCK_EMBEDDING_MODEL: !Ref BedrockEmbeddingModel
-        ENGRAM_INSPECTION_TOKEN: !Ref InspectionToken
+        ENGRAM_API_TOKEN: !Ref ApiToken
         COCKROACH_MCP_URL: https://cockroachlabs.cloud/mcp
         COCKROACH_MCP_CLUSTER_ID: !Ref CockroachMcpClusterId
         COCKROACH_MCP_API_KEY: !Ref CockroachMcpApiKey
