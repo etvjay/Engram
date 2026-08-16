@@ -17,6 +17,12 @@ Use it to:
 
 A frontend toolchain may generate a client from `openapi.json` and bind it to an environment-specific Engram API base URL.
 
+```bash
+npx openapi-typescript openapi.json -o src/generated/engram-api.d.ts
+```
+
+The generated types describe transport shapes only; bind requests to the appropriate API base URL and authorization boundary in your application.
+
 Do not hardcode production credentials into generated code.
 
 ## Current important routes
