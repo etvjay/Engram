@@ -8,16 +8,20 @@ claims:
     evidence:
       - tests/e2e/memory-caused-behavior.test.ts
       - tests/e2e/demo-orchestration.test.ts
-      - GitHub Actions Engram CI
-    boundary: Deterministic simulated external execution; repository abstraction for orchestration test.
+      - services/demo/src/run-runtime-demo.ts
+      - GitHub Actions Engram CI run 31921774367
+    boundary: Deterministic simulated external execution; causal behavior is tested through the Engram runtime and provenance model.
 
   - id: ENG-002
-    claim: Engram persists executions, memories, retrievals, decisions, outcomes, and memory-to-decision provenance in CockroachDB.
+    claim: Engram persists executions, memories, retrievals, decisions, outcomes, runtime evaluations, and memory-to-decision provenance in CockroachDB.
     state: IMPLEMENTED
     evidence:
       - db/migrations/001_initial.sql
+      - db/migrations/002_runtime.sql
       - packages/cockroach/src/repository.ts
+      - packages/cockroach/src/runtime-store.ts
       - tests/integration/cockroach-memory-loop.test.ts
+      - tests/integration/cockroach-runtime.test.ts
     promotion_condition: Successful Engram Live Verification run against CockroachDB Cloud with evidence/live/latest.json artifact.
 
   - id: ENG-003
@@ -26,13 +30,14 @@ claims:
     evidence:
       - db/migrations/001_initial.sql
       - packages/cockroach/src/memory.ts
-    promotion_condition: Successful live verification artifact showing Run B retrieved the Run A memory from CockroachDB Cloud.
+    promotion_condition: Successful live verification artifact plus query-plan evidence demonstrating the CockroachDB vector index is used by the live retrieval path.
 
   - id: ENG-004
     claim: Amazon Bedrock Titan Embeddings V2 supplies Engram memory/query embeddings.
     state: IMPLEMENTED
     evidence:
       - packages/bedrock/src/embeddings.ts
+      - services/verification/src/live-verify.ts
     promotion_condition: Successful live verification artifact produced with Bedrock credentials and no deterministic test embedding provider.
 
   - id: ENG-005
@@ -41,6 +46,7 @@ claims:
     evidence:
       - packages/cockroach-mcp/src/client.ts
       - services/api/src/handler.ts
+      - services/verification/src/live-verify.ts
     promotion_condition: Successful live verification artifact containing MCP status and select_query provenance output.
 
   - id: ENG-006
@@ -49,7 +55,7 @@ claims:
     evidence:
       - template.yaml
       - services/api/src/handler.ts
-    promotion_condition: Successful deployed health check and demo invocation against the public AWS endpoint.
+    promotion_condition: Successful sam build/deploy, public health check, runtime demo invocation, and at least one control-plane read against the deployed endpoint.
 
   - id: ENG-007
     claim: Engram exposes an evidence-first four-screen interface for Execute, Live Trace, Memory Explorer, and Compare Runs.
@@ -64,14 +70,84 @@ claims:
     state: FALSE
     evidence:
       - packages/execution-simulator/src/index.ts
-      - services/demo/src/run-demo.ts
-    boundary: The workload is intentionally SIMULATED. Persistence, retrieval, and provenance may be promoted independently through live infrastructure verification.
+      - services/demo/src/run-runtime-demo.ts
+    boundary: The workload is intentionally SIMULATED. Persistence, retrieval, provenance, runtime influence validation, and cloud integrations may be promoted independently.
 
   - id: ENG-009
-    claim: Engram has a reproducible live-verification path that can promote CockroachDB persistence, distributed vector retrieval, Bedrock embeddings, and Managed MCP provenance from IMPLEMENTED to VERIFIED.
+    claim: Engram has a reproducible live-verification path for the runtime causal spine and external CockroachDB, Bedrock, and Managed MCP integrations.
     state: TESTED
     evidence:
       - services/verification/src/live-verify.ts
+      - packages/cockroach/src/migrations.ts
       - .github/workflows/live-verification.yml
-      - GitHub Actions Engram CI build
-    promotion_condition: Manually dispatch Engram Live Verification with the required CockroachDB, AWS, and MCP secrets; successful execution must emit evidence/live/latest.json.
+      - GitHub Actions Engram CI run 31921774367
+    promotion_condition: Manually dispatch Engram Live Verification with required CockroachDB, AWS, and MCP secrets; successful execution must emit evidence/live/latest.json.
+
+  - id: ENG-010
+    claim: Engram enforces recall exposure and memory-influence eligibility in a stateless runtime that survives Lambda cold starts.
+    state: TESTED
+    evidence:
+      - packages/runtime/src/runtime.ts
+      - packages/runtime/src/policy.ts
+      - packages/cockroach/src/runtime-store.ts
+      - tests/e2e/runtime-cold-start.test.ts
+      - tests/integration/cockroach-runtime.test.ts
+      - GitHub Actions Engram CI run 31921774367
+    boundary: Cold-start behavior is automated; live CockroachDB execution remains separately promoted by ENG-002/009.
+
+  - id: ENG-011
+    claim: Engram freezes the resolved memory-policy bundle per execution so later policy activation cannot silently change an in-flight run.
+    state: TESTED
+    evidence:
+      - packages/policy/src/registry.ts
+      - packages/cockroach/src/policy-registry.ts
+      - packages/runtime/src/runtime.ts
+      - tests/runtime/frozen-policy.test.ts
+      - GitHub Actions Engram CI run 31921774367
+
+  - id: ENG-012
+    claim: Engram exposes one semantic runtime through TypeScript SDK, Python SDK, HTTP API, and Engram MCP rather than independent memory implementations.
+    state: TESTED
+    evidence:
+      - packages/sdk
+      - packages/python
+      - packages/mcp-server
+      - services/api/src/handler.ts
+      - services/runtime/src/create-runtime.ts
+      - tests/sdk
+      - tests/mcp
+      - GitHub Actions Engram CI run 31921774367
+    boundary: Package/runtime conformance is automated; published package registries and public API deployment are not yet verified.
+
+  - id: ENG-013
+    claim: Framework adapters preserve external execution telemetry as ExecutionEpisode evidence without inferring memory-to-action causality.
+    state: TESTED
+    evidence:
+      - packages/episode/src/schema.ts
+      - packages/adapters/openai-agents/src/index.ts
+      - packages/adapters/langgraph/src/index.ts
+      - tests/adapters
+      - GitHub Actions Engram CI run 31921774367
+    boundary: Structural adapter conformance is tested; live framework applications are not yet part of external verification.
+
+  - id: ENG-014
+    claim: Engram provides read-focused control-plane views over agents, executions, memories, influences, and policy state.
+    state: IMPLEMENTED
+    evidence:
+      - packages/control-plane/src/store.ts
+      - packages/cockroach/src/control-plane.ts
+      - services/api/src/handler.ts
+      - template.yaml
+    promotion_condition: Current aggregate CI must pass after API wiring; public deployment must successfully serve control-plane reads before LIVE VERIFIED.
+
+  - id: ENG-015
+    claim: Engram distinguishes memory usefulness evidence from mere retrieval or later success through explicit evaluations, relationships, and counterfactual experiments.
+    state: IMPLEMENTED
+    evidence:
+      - packages/evaluation/src/domain.ts
+      - packages/evaluation/src/store.ts
+      - packages/evaluation/src/quality.ts
+      - packages/cockroach/src/evaluation-store.ts
+      - db/migrations/004_evaluation.sql
+      - tests/evaluation
+    promotion_condition: Current aggregate CI must pass; controlled evaluation evidence is required before individual memories are labeled beneficial or harmful.
