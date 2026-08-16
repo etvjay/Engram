@@ -6,6 +6,7 @@ import type { EmbeddingProvider, OperationalMemory } from "../../packages/memory
 import { createCockroachPool } from "../../packages/cockroach/src/client.js";
 import { CockroachMemoryRepository } from "../../packages/cockroach/src/repository.js";
 import { CockroachRuntimeStore } from "../../packages/cockroach/src/runtime-store.js";
+import type { EngramRuntimeStore } from "../../packages/runtime/src/store.js";
 import { EngramRuntime } from "../../packages/runtime/src/runtime.js";
 import { DEFAULT_RUNTIME_POLICIES } from "../../packages/runtime/src/defaults.js";
 
@@ -130,9 +131,11 @@ suite("Cockroach-backed Engram runtime", () => {
     const persistedRecalls = await store.getRecalls(current.executionId);
     expect(persistedRecalls[0]?.candidates.some((candidate) => candidate.memoryId === memory.id)).toBe(true);
 
-    const trace = await store.getTrace(current.executionId) as {
+    const runtimeStore: EngramRuntimeStore = store;
+    const trace = await runtimeStore.getTrace(current.executionId) as {
       decisions: Array<{ memory_influences: Array<Record<string, unknown>> }>;
       retrievals: Array<Record<string, unknown>>;
+      runtimeEvaluations?: Array<Record<string, unknown>>;
     };
     expect(trace.retrievals).toHaveLength(1);
     expect(trace.decisions).toHaveLength(1);
