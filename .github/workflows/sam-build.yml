@@ -29,6 +29,8 @@ jobs:
   sam-build:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      SAM_CLI_TELEMETRY: '0'
     steps:
       - uses: actions/checkout@v4
 
