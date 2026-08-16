@@ -2,7 +2,7 @@
 
 Date: 2026-08-16
 Status: **ACCEPTED**
-Evidence: GitHub Actions Engram CI `31940146076`
+Evidence: GitHub Actions Engram CI `31940295594`
 
 ## Decision
 
@@ -17,6 +17,7 @@ Accept memory invalidation and explicit supersession as distinct, composable mec
 - Recall must preserve machine-readable rejection reasons.
 - A rejected memory from a retrieval cannot be used as valid influence provenance.
 - A current eligible memory may change application behavior with explicit retrieval and counterfactual provenance.
+- `CONTROL_RUN` evidence for a changed-action claim should reference a real observed execution whenever available, not a recall-only baseline.
 
 ## Architectural consequence
 
