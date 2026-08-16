@@ -17,6 +17,7 @@ import type { MemoryEligibilityAdvisor } from "./eligibility.js";
 import { memoryStateDigest } from "./memory-state.js";
 import type { EngramRuntimeStore } from "./store.js";
 import {
+  evidenceRank,
   evaluateAdmissionSignal,
   evaluateInfluenceMemory,
   evaluateRecallCandidate,
@@ -236,7 +237,11 @@ export class EngramRuntime {
         signal.sourceExecutionIds?.length ? signal.sourceExecutionIds : [execution.id],
       )];
       const reasons = evaluateAdmissionSignal(signal, policies, input.evidenceState);
-      reasons.push(...await this.validateAdmissionSources(execution, sourceExecutionIds));
+      reasons.push(...await this.validateAdmissionSources(
+        execution,
+        sourceExecutionIds,
+        signal.evidenceState,
+      ));
       if (reasons.length) {
         rejectedSignals.push({ kind: signal.kind, reasons });
         await this.evaluation(execution.id, "MEMORY_NOT_ADMITTED", {
@@ -446,6 +451,7 @@ export class EngramRuntime {
   private async validateAdmissionSources(
     execution: RuntimeExecutionRecord,
     sourceExecutionIds: string[],
+    memoryEvidenceState: import("../../core/src/protocol.js").EvidenceState,
   ): Promise<string[]> {
     const reasons: string[] = [];
     if (!sourceExecutionIds.includes(execution.id)) {
@@ -460,6 +466,20 @@ export class EngramRuntime {
       }
       if (source.agentId !== execution.agentId) {
         reasons.push(`SOURCE_EXECUTION_AGENT_MISMATCH:${sourceExecutionId}`);
+        continue;
+      }
+      if (sourceExecutionId === execution.id) continue;
+      if (!this.store.getOutcomeEvidenceState) {
+        reasons.push(`SOURCE_EXECUTION_EVIDENCE_UNAVAILABLE:${sourceExecutionId}`);
+        continue;
+      }
+      const sourceEvidenceState = await this.store.getOutcomeEvidenceState(sourceExecutionId);
+      if (!sourceEvidenceState) {
+        reasons.push(`SOURCE_EXECUTION_OUTCOME_NOT_FOUND:${sourceExecutionId}`);
+        continue;
+      }
+      if (evidenceRank(memoryEvidenceState) > evidenceRank(sourceEvidenceState)) {
+        reasons.push(`MEMORY_EVIDENCE_EXCEEDS_SOURCE_EVIDENCE:${sourceExecutionId}`);
       }
     }
     return reasons;

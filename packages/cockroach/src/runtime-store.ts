@@ -1,5 +1,5 @@
 import type pg from "pg";
-import type { MemoryRecall } from "../../core/src/protocol.js";
+import type { EvidenceState, MemoryRecall } from "../../core/src/protocol.js";
 import type {
   ExecutionContext,
   ExecutionEvent,
@@ -57,6 +57,14 @@ export class CockroachRuntimeStore implements EngramRuntimeStore {
 
   recordOutcome(outcome: Outcome) {
     return this.memory.recordOutcome(outcome);
+  }
+
+  async getOutcomeEvidenceState(executionId: string): Promise<EvidenceState | null> {
+    const result = await this.pool.query<{ evidence_state: EvidenceState }>(
+      `SELECT evidence_state FROM outcomes WHERE execution_id=$1 LIMIT 1`,
+      [executionId],
+    );
+    return result.rows[0]?.evidence_state ?? null;
   }
 
   searchMemory(input: MemorySearchInput): Promise<MemorySearchResult> {
