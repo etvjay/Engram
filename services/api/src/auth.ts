@@ -18,7 +18,8 @@ function safeEqual(left: string, right: string): boolean {
 
 export function requiresInspectionAuthorization(method: string, path: string): boolean {
   if (method === "GET" && path.startsWith("/v1/mcp/")) return true;
-  if (method === "GET" && path.startsWith("/v1/control-plane/")) return true;
+  if (method === "GET" && path.startsWith("/v1/control/")) return true;
+  if (method === "GET" && /^\/v1\/memories\/[0-9a-fA-F-]{36}\/evaluation$/.test(path)) return true;
   if (method === "GET" && /^\/v1\/executions\/[0-9a-fA-F-]{36}\/trace$/.test(path)) return true;
   if (method === "POST" && path === "/v1/memory/search") return true;
   return false;
