@@ -150,7 +150,12 @@ export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Res
         service: "engram-api",
         status: "ok",
         runtime: "engram-runtime/v1",
-        evidenceBoundary: { externalExecution: "SIMULATED", persistence: "REAL", retrieval: "REAL", decisionTrace: "REAL" },
+        protocolBoundary: {
+          externalExecution: "APPLICATION_DEFINED",
+          operationalMemory: "ENGRAM_MANAGED",
+          decisionAuthority: "APPLICATION_OWNED",
+          demoExternalExecution: "SIMULATED",
+        },
       });
     }
 
