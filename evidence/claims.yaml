@@ -63,8 +63,11 @@ claims:
     evidence:
       - template.yaml
       - services/api/src/handler.ts
+      - .github/workflows/sam-build.yml
       - .github/workflows/aws-deploy-verification.yml
-    promotion_condition: Successful Engram AWS Deploy Verification run proving sam build/deploy, public health, runtime demo, protected trace, protected control-plane/evaluation reads, and MCP inspection endpoints.
+      - GitHub Actions Engram SAM Build run 31935001857
+    boundary: The SAM application packages successfully in CI. Actual Lambda deployment and public API operation remain UNVERIFIED.
+    promotion_condition: Successful Engram AWS Deploy Verification run proving sam deploy, public health, runtime demo, protected trace, protected control-plane/evaluation reads, and MCP inspection endpoints.
 
   - id: ENG-007
     claim: Engram exposes an evidence-first four-screen interface for Execute, Live Trace, Memory Explorer, and Compare Runs.
@@ -127,8 +130,9 @@ claims:
       - services/runtime/src/create-runtime.ts
       - tests/sdk
       - tests/mcp
-      - GitHub Actions Engram CI run 31921774367
-    boundary: Package/runtime conformance is automated; published package registries and public API deployment are not yet verified.
+      - packages/python/tests/test_client.py
+      - GitHub Actions Engram CI run 31935001862
+    boundary: Package/runtime conformance and TypeScript/Python Bearer-token propagation are automated; published package registries and public API deployment are not yet verified.
 
   - id: ENG-013
     claim: Framework adapters preserve external execution telemetry as ExecutionEpisode evidence without inferring memory-to-action causality.
@@ -150,7 +154,7 @@ claims:
       - services/api/src/handler.ts
       - template.yaml
       - tests/conformance/api-contract.test.ts
-      - GitHub Actions Engram CI run 31922956931
+      - GitHub Actions Engram CI run 31935001862
     boundary: Handler/SAM contract and routing behavior are automated; public AWS deployment is not yet verified.
 
   - id: ENG-015
@@ -165,7 +169,7 @@ claims:
       - tests/evaluation
       - tests/conformance/api-contract.test.ts
       - experiments/EXP-003-contradiction-and-harm
-      - GitHub Actions Engram CI run 31922956931
+      - GitHub Actions Engram CI run 31935001862
     boundary: Controlled evaluation evidence is required before individual memories are labeled beneficial or harmful; the control-plane response preserves this interpretation boundary.
 
   - id: ENG-016
@@ -175,7 +179,7 @@ claims:
       - packages/cockroach/src/atomic-runtime-store.ts
       - db/migrations/005_atomic_event_sequence.sql
       - tests/runtime/atomic-event-sequence.test.ts
-      - GitHub Actions Engram CI run 31922956931
+      - GitHub Actions Engram CI run 31935001862
     boundary: Automated runtime behavior is tested; concurrent live/load execution against CockroachDB remains unverified.
 
   - id: ENG-017
@@ -186,7 +190,7 @@ claims:
       - packages/runtime/src/runtime.ts
       - tests/runtime/bad-memory.test.ts
       - experiments/EXP-002-bad-memory
-      - GitHub Actions Engram CI run 31922956931
+      - GitHub Actions Engram CI run 31935001862
     boundary: Default thresholds are versioned policy choices, not universal truth; live CockroachDB execution remains separately unverified.
 
   - id: ENG-018
@@ -197,11 +201,11 @@ claims:
       - packages/evaluation/src/quality.ts
       - tests/evaluation/contradiction-harm.test.ts
       - experiments/EXP-003-contradiction-and-harm
-      - GitHub Actions Engram CI run 31922956931
+      - GitHub Actions Engram CI run 31935001862
     boundary: Contradiction is explicitly assessed; Engram does not infer contradiction solely from vector similarity.
 
   - id: ENG-019
-    claim: Engram inspection surfaces fail closed unless an explicit bearer token is configured and supplied.
+    claim: Engram protects every non-demo /v1 API surface with fail-closed bearer authorization.
     state: TESTED
     evidence:
       - services/api/src/auth.ts
@@ -209,8 +213,10 @@ claims:
       - template.yaml
       - tests/security/api-inspection-auth.test.ts
       - tests/conformance/api-contract.test.ts
-      - GitHub Actions Engram CI run 31922956931
-    boundary: This is an MVP inspection boundary, not a complete multi-tenant identity/authorization system.
+      - tests/sdk/http-transport.test.ts
+      - packages/python/tests/test_client.py
+      - GitHub Actions Engram CI run 31935001862
+    boundary: GET /health and POST /v1/demo/run are deliberately public. ENGRAM_API_TOKEN is a single-token MVP deployment guard, not complete multi-tenant identity/RBAC, and must not be embedded into a public static frontend.
 
   - id: ENG-020
     claim: Engram has a reproducible AWS SAM deployment verification workflow that can produce public deployment evidence without changing the simulated external-workload boundary.
@@ -218,5 +224,29 @@ claims:
     evidence:
       - .github/workflows/aws-deploy-verification.yml
       - template.yaml
-    boundary: Workflow presence is implementation evidence only; AWS deployment remains UNVERIFIED until the workflow succeeds and emits evidence/aws/latest.json.
+      - .github/workflows/sam-build.yml
+      - GitHub Actions Engram SAM Build run 31935001857
+    boundary: SAM packaging is TESTED, but AWS deployment remains UNVERIFIED until the deployment workflow succeeds and emits evidence/aws/latest.json.
     promotion_condition: Successful Engram AWS Deploy Verification workflow run with uploaded deployment artifact.
+
+  - id: ENG-021
+    claim: Engram preserves exact recall-to-decision provenance when multiple relevant memories compete and rejects a valid memory paired with the wrong retrieval.
+    state: TESTED
+    evidence:
+      - packages/runtime/src/runtime.ts
+      - tests/runtime/competing-memory-provenance.test.ts
+      - experiments/EXP-004-competing-memories/findings.md
+      - experiments/EXP-004-competing-memories/decision.md
+      - GitHub Actions Engram CI run 31935001862
+    boundary: A memory ID is not sufficient influence provenance; the referenced retrieval must actually have exposed that memory.
+
+  - id: ENG-022
+    claim: Engram can keep explicitly contradictory memories recall-visible while an opt-in eligibility advisor blocks unresolved contradiction from becoming action authority.
+    state: TESTED
+    evidence:
+      - packages/runtime/src/eligibility.ts
+      - packages/evaluation/src/eligibility-advisor.ts
+      - tests/runtime/competing-memories.test.ts
+      - experiments/EXP-004-competing-memories
+      - GitHub Actions Engram CI run 31935001862
+    boundary: This is optional workload/evaluation-aware composition, not a universal Engram protocol default. Contradiction requires explicit relationship evidence and is not inferred from vector similarity.
