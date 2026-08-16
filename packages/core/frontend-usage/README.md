@@ -54,5 +54,6 @@ The digest is provenance metadata. Frontends must not recompute it, treat it as 
 - `packages/runtime/src/memory-state.ts`
 - `packages/runtime/src/runtime.ts`
 - `tests/runtime/recall-influence-state-integrity.test.ts`
+- `tests/runtime/memory-state-digest.test.ts`
 
-**Evidence status:** TESTED once EXP-019 CI is accepted; until then the branch change remains under verification.
+**Evidence status:** TESTED — EXP-019 accepted by Engram CI `31947418007`.
