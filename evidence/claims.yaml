@@ -9,6 +9,7 @@ claims:
       - tests/e2e/memory-caused-behavior.test.ts
       - tests/e2e/demo-orchestration.test.ts
       - services/demo/src/run-runtime-demo.ts
+      - experiments/EXP-001-memory-caused-decision
       - GitHub Actions Engram CI run 31921774367
     boundary: Deterministic simulated external execution; causal behavior is tested through the Engram runtime and provenance model.
 
@@ -20,21 +21,24 @@ claims:
       - db/migrations/002_runtime.sql
       - packages/cockroach/src/repository.ts
       - packages/cockroach/src/runtime-store.ts
+      - packages/cockroach/src/atomic-runtime-store.ts
       - tests/integration/cockroach-memory-loop.test.ts
       - tests/integration/cockroach-runtime.test.ts
     promotion_condition: Successful Engram Live Verification run against CockroachDB Cloud with evidence/live/latest.json artifact.
 
   - id: ENG-003
-    claim: Engram performs distributed vector retrieval using CockroachDB Cloud VECTOR/C-SPANN.
+    claim: Engram performs agent-scoped cosine vector retrieval using CockroachDB Cloud VECTOR/C-SPANN.
     state: IMPLEMENTED
     evidence:
       - db/migrations/001_initial.sql
       - db/migrations/005_cosine_vector_index.sql
+      - db/migrations/006_agent_scoped_vector_index.sql
+      - db/migrations/007_agent_cosine_vector_index.sql
       - packages/cockroach/src/memory.ts
       - packages/cockroach/src/vector-plan.ts
       - services/verification/src/live-verify.ts
-    boundary: Automated code now captures the natural EXPLAIN plan and distinguishes successful cosine vector-distance retrieval from actual C-SPANN cosine-index selection.
-    promotion_condition: Successful live verification artifact where vectorIndex.usesVectorSearch and vectorIndex.usesCosineIndex prove that CockroachDB selected memories_embedding_cosine_idx for the live retrieval query shape.
+    boundary: Production retrieval is agent-scoped and uses cosine distance. Automated code captures a natural EXPLAIN plan and distinguishes successful vector-distance retrieval from actual C-SPANN index selection.
+    promotion_condition: Successful live verification artifact where vectorIndex.usesVectorSearch and vectorIndex.usesCosineIndex prove that CockroachDB naturally selected memories_agent_embedding_cosine_idx for the live retrieval query shape.
 
   - id: ENG-004
     claim: Amazon Bedrock Titan Embeddings V2 supplies Engram memory/query embeddings.
@@ -59,7 +63,8 @@ claims:
     evidence:
       - template.yaml
       - services/api/src/handler.ts
-    promotion_condition: Successful sam build/deploy, public health check, runtime demo invocation, and at least one control-plane read against the deployed endpoint.
+      - .github/workflows/aws-deploy-verification.yml
+    promotion_condition: Successful Engram AWS Deploy Verification run proving sam build/deploy, public health, runtime demo, protected trace, protected control-plane/evaluation reads, and MCP inspection endpoints.
 
   - id: ENG-007
     claim: Engram exposes an evidence-first four-screen interface for Execute, Live Trace, Memory Explorer, and Compare Runs.
@@ -85,7 +90,7 @@ claims:
       - packages/cockroach/src/migrations.ts
       - packages/cockroach/src/vector-plan.ts
       - .github/workflows/live-verification.yml
-      - GitHub Actions Engram CI run 31922542963
+      - GitHub Actions Engram CI run 31922956931
     boundary: The verifier writes a sanitized UNKNOWN artifact on failure and separates vector-query success from C-SPANN index selection.
     promotion_condition: Manually dispatch Engram Live Verification with required CockroachDB, AWS, and MCP secrets; successful execution must emit evidence/live/latest.json.
 
@@ -145,7 +150,7 @@ claims:
       - services/api/src/handler.ts
       - template.yaml
       - tests/conformance/api-contract.test.ts
-      - GitHub Actions Engram CI run 31922542963
+      - GitHub Actions Engram CI run 31922956931
     boundary: Handler/SAM contract and routing behavior are automated; public AWS deployment is not yet verified.
 
   - id: ENG-015
@@ -159,7 +164,8 @@ claims:
       - db/migrations/004_memory_evaluation.sql
       - tests/evaluation
       - tests/conformance/api-contract.test.ts
-      - GitHub Actions Engram CI run 31922542963
+      - experiments/EXP-003-contradiction-and-harm
+      - GitHub Actions Engram CI run 31922956931
     boundary: Controlled evaluation evidence is required before individual memories are labeled beneficial or harmful; the control-plane response preserves this interpretation boundary.
 
   - id: ENG-016
@@ -169,5 +175,48 @@ claims:
       - packages/cockroach/src/atomic-runtime-store.ts
       - db/migrations/005_atomic_event_sequence.sql
       - tests/runtime/atomic-event-sequence.test.ts
-      - GitHub Actions Engram CI run 31922542963
+      - GitHub Actions Engram CI run 31922956931
     boundary: Automated runtime behavior is tested; concurrent live/load execution against CockroachDB remains unverified.
+
+  - id: ENG-017
+    claim: Engram rejects stale/incompatible operational memories before exposure and independently rejects low-confidence recalled memories before decision influence.
+    state: TESTED
+    evidence:
+      - packages/runtime/src/policy.ts
+      - packages/runtime/src/runtime.ts
+      - tests/runtime/bad-memory.test.ts
+      - experiments/EXP-002-bad-memory
+      - GitHub Actions Engram CI run 31922956931
+    boundary: Default thresholds are versioned policy choices, not universal truth; live CockroachDB execution remains separately unverified.
+
+  - id: ENG-018
+    claim: Engram preserves contradictory memories and harmful effect evidence append-only rather than overwriting history or using latest-result-wins evaluation.
+    state: TESTED
+    evidence:
+      - packages/evaluation/src/domain.ts
+      - packages/evaluation/src/quality.ts
+      - tests/evaluation/contradiction-harm.test.ts
+      - experiments/EXP-003-contradiction-and-harm
+      - GitHub Actions Engram CI run 31922956931
+    boundary: Contradiction is explicitly assessed; Engram does not infer contradiction solely from vector similarity.
+
+  - id: ENG-019
+    claim: Engram inspection surfaces fail closed unless an explicit bearer token is configured and supplied.
+    state: TESTED
+    evidence:
+      - services/api/src/auth.ts
+      - services/api/src/handler.ts
+      - template.yaml
+      - tests/security/api-inspection-auth.test.ts
+      - tests/conformance/api-contract.test.ts
+      - GitHub Actions Engram CI run 31922956931
+    boundary: This is an MVP inspection boundary, not a complete multi-tenant identity/authorization system.
+
+  - id: ENG-020
+    claim: Engram has a reproducible AWS SAM deployment verification workflow that can produce public deployment evidence without changing the simulated external-workload boundary.
+    state: IMPLEMENTED
+    evidence:
+      - .github/workflows/aws-deploy-verification.yml
+      - template.yaml
+    boundary: Workflow presence is implementation evidence only; AWS deployment remains UNVERIFIED until the workflow succeeds and emits evidence/aws/latest.json.
+    promotion_condition: Successful Engram AWS Deploy Verification workflow run with uploaded deployment artifact.
