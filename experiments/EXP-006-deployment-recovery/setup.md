@@ -2,43 +2,49 @@
 
 ## Automated proof
 
-`tests/scenarios/deployment-memory.test.ts`
+Scenario applicability proof:
 
-## Scenario implementation
+- `tests/scenarios/deployment-memory.test.ts`
+- `packages/scenarios/deployment/src/index.ts`
 
-`packages/scenarios/deployment/src/index.ts`
+Full EngramRuntime causal proof:
 
-## Context
+- `tests/e2e/deployment-recovery-memory.test.ts`
+
+## Scenario-level context
 
 A production deployment includes a schema migration touching a hot table.
 
-### Baseline strategy
+Baseline strategy: `PARALLEL_MIGRATE_AND_DEPLOY`.
 
-`PARALLEL_MIGRATE_AND_DEPLOY`
+The scenario simulator models this as causing `MIGRATION_LOCK_CONTENTION`, elevated errors, and rollback when the migration touches a hot table.
 
-The deployment simulator models this as causing `MIGRATION_LOCK_CONTENTION`, elevated errors, and rollback when the migration touches a hot table.
+Memory-constrained strategy: `MIGRATE_THEN_DEPLOY`.
 
-### Memory-constrained strategy
+A prior Operational Memory is eligible only when it describes the comparable deployment failure conditions with sufficient confidence and retrieval score. The scenario test also proves that a high-scoring but operationally inapplicable non-hot-table memory does not change the action.
 
-`MIGRATE_THEN_DEPLOY`
+## Runtime-level context
 
-A prior Operational Memory is eligible only when it describes:
+A second deployment fixture exercises the complete runtime lifecycle around a high-write schema change:
 
-- workflow type `software_deployment`;
-- failure type `MIGRATION_LOCK_CONTENTION`;
-- a hot-table migration;
-- sufficient confidence and retrieval score.
+1. source execution starts without relevant memory;
+2. direct migration encounters `MIGRATION_LOCK_TIMEOUT` and rollback is observed;
+3. Engram admits the recovery lesson;
+4. a separate same-context control execution deliberately omits recall and reproduces the compensated failure;
+5. treatment recall exposes the admitted memory;
+6. the application selects `EXPAND_CONTRACT` instead of the control's direct migration;
+7. Engram records `CHANGED_ACTION` through the exact retrieval;
+8. the counterfactual references the actual control execution ID with `CONTROL_RUN` evidence;
+9. the treatment outcome is `SUCCESS`.
 
-## Assertions
+## Evidence runs
 
-1. Control without memory repeats the parallel strategy and ends `COMPENSATED`.
-2. Treatment with applicable memory changes to `MIGRATE_THEN_DEPLOY` and succeeds.
-3. Treatment records the exact memory ID.
-4. Treatment records `PARALLEL_MIGRATE_AND_DEPLOY` as the memory-free counterfactual.
-5. A high-scoring but non-hot-table memory does not change the action.
+- scenario applicability: Engram CI `31935094682`
+- full runtime/control proof: Engram CI `31935125047`
 
 ## Evidence classification
 
-- scenario execution: SIMULATED;
-- deterministic behavioral difference: pending CI acceptance;
-- live deployment integration: UNVERIFIED / out of scope for this experiment.
+- deployment execution: SIMULATED;
+- scenario applicability and negative control: TESTED;
+- runtime recall/influence/control-run provenance: TESTED;
+- live CI/CD or production deployment integration: UNVERIFIED / outside this experiment.
