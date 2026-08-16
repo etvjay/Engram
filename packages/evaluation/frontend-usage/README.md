@@ -25,6 +25,24 @@ Consume evaluation data through the Engram HTTP API to render:
 - staleness reasons;
 - counterfactual experiment evidence.
 
+## Example
+
+```ts
+const evaluations = await fetch(`${baseUrl}/v1/evaluations/memories/${memoryId}`, {
+  headers: { authorization: `Bearer ${sessionToken}` },
+}).then((response) => response.json());
+
+for (const evaluation of evaluations.items ?? evaluations) {
+  renderEvaluation({
+    method: evaluation.method,
+    effect: evaluation.effect,
+    evidenceState: evaluation.evidenceState,
+  });
+}
+```
+
+Render the evidence method/state alongside the effect so observational evidence is not presented as controlled proof.
+
 ## Important invariants
 
 - later success does **not** automatically make a memory beneficial;
