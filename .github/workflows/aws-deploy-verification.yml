@@ -29,7 +29,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-      ENGRAM_INSPECTION_TOKEN: ${{ secrets.ENGRAM_INSPECTION_TOKEN }}
+      ENGRAM_API_TOKEN: ${{ secrets.ENGRAM_API_TOKEN }}
       BEDROCK_EMBEDDING_MODEL: ${{ vars.BEDROCK_EMBEDDING_MODEL || 'amazon.titan-embed-text-v2:0' }}
       COCKROACH_MCP_CLUSTER_ID: ${{ secrets.COCKROACH_MCP_CLUSTER_ID }}
       COCKROACH_MCP_API_KEY: ${{ secrets.COCKROACH_MCP_API_KEY }}
@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=0
-          for name in DATABASE_URL AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY ENGRAM_INSPECTION_TOKEN COCKROACH_MCP_CLUSTER_ID COCKROACH_MCP_API_KEY; do
+          for name in DATABASE_URL AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY ENGRAM_API_TOKEN COCKROACH_MCP_CLUSTER_ID COCKROACH_MCP_API_KEY; do
             if [[ -z "${!name:-}" ]]; then
               echo "::error::$name is not configured"
               missing=1
@@ -85,7 +85,7 @@ jobs:
               "DatabaseUrl=$DATABASE_URL" \
               "CorsOrigin=$CORS_ORIGIN" \
               "BedrockEmbeddingModel=$BEDROCK_EMBEDDING_MODEL" \
-              "InspectionToken=$ENGRAM_INSPECTION_TOKEN" \
+              "ApiToken=$ENGRAM_API_TOKEN" \
               "CockroachMcpClusterId=$COCKROACH_MCP_CLUSTER_ID" \
               "CockroachMcpApiKey=$COCKROACH_MCP_API_KEY" \
               "CockroachMcpDatabase=$COCKROACH_MCP_DATABASE"
@@ -106,7 +106,7 @@ jobs:
           fi
           echo "api_url=$api_url" >> "$GITHUB_OUTPUT"
 
-      - name: Verify public and protected API surfaces
+      - name: Verify public and authenticated API surfaces
         shell: bash
         env:
           API_URL: ${{ steps.api.outputs.api_url }}
@@ -118,6 +118,15 @@ jobs:
             "$API_URL/health" \
             -o evidence/aws/health.json
 
+          unauthenticated_status="$(curl --silent --show-error \
+            -o evidence/aws/auth-rejection.json \
+            -w '%{http_code}' \
+            "$API_URL/v1/control-plane/overview")"
+          if [[ "$unauthenticated_status" != "401" ]]; then
+            echo "::error::Expected unauthenticated /v1 request to return 401, got $unauthenticated_status"
+            exit 1
+          fi
+
           curl --fail-with-body --silent --show-error \
             -X POST "$API_URL/v1/demo/run" \
             -H 'content-type: application/json' \
@@ -128,27 +137,27 @@ jobs:
           memory_id="$(node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('evidence/aws/demo.json','utf8'));if(!d.memory?.id)process.exit(2);process.stdout.write(d.memory.id)")"
 
           curl --fail-with-body --silent --show-error \
-            -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+            -H "Authorization: Bearer $ENGRAM_API_TOKEN" \
             "$API_URL/v1/executions/$run_b/trace" \
             -o evidence/aws/trace.json
 
           curl --fail-with-body --silent --show-error \
-            -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+            -H "Authorization: Bearer $ENGRAM_API_TOKEN" \
             "$API_URL/v1/control-plane/overview" \
             -o evidence/aws/control-plane-overview.json
 
           curl --fail-with-body --silent --show-error \
-            -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+            -H "Authorization: Bearer $ENGRAM_API_TOKEN" \
             "$API_URL/v1/control-plane/memories/$memory_id/evaluation" \
             -o evidence/aws/memory-evaluation.json
 
           curl --fail-with-body --silent --show-error \
-            -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+            -H "Authorization: Bearer $ENGRAM_API_TOKEN" \
             "$API_URL/v1/mcp/status" \
             -o evidence/aws/mcp-status.json
 
           curl --fail-with-body --silent --show-error \
-            -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+            -H "Authorization: Bearer $ENGRAM_API_TOKEN" \
             "$API_URL/v1/mcp/memories/$memory_id/provenance" \
             -o evidence/aws/mcp-provenance.json
 
@@ -171,15 +180,17 @@ jobs:
               samBuild: 'VERIFIED',
               samDeploy: 'VERIFIED',
               publicHealth: 'VERIFIED',
-              runtimeDemo: 'VERIFIED',
-              protectedTrace: 'VERIFIED',
-              protectedControlPlane: 'VERIFIED',
-              protectedMemoryEvaluation: 'VERIFIED',
-              managedMcpStatusEndpoint: 'VERIFIED',
-              managedMcpProvenanceEndpoint: 'VERIFIED',
+              publicRuntimeDemo: 'VERIFIED',
+              apiAuthorizationRejection: 'VERIFIED',
+              authenticatedTrace: 'VERIFIED',
+              authenticatedControlPlane: 'VERIFIED',
+              authenticatedMemoryEvaluation: 'VERIFIED',
+              authenticatedMcpStatusEndpoint: 'VERIFIED',
+              authenticatedMcpProvenanceEndpoint: 'VERIFIED',
               externalVenueExecution: 'SIMULATED',
             },
             health: read('health'),
+            authRejection: read('auth-rejection'),
             mcpStatus: read('mcp-status'),
           };
           fs.writeFileSync('evidence/aws/latest.json', `${JSON.stringify(evidence, null, 2)}\n`);
