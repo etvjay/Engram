@@ -69,6 +69,27 @@ describe("Engram HTTP transport", () => {
     ]);
   });
 
+  it("adds the configured API bearer token to requests", async () => {
+    let authorization: string | null = null;
+    const transport = httpTransport({
+      baseUrl: "https://engram.example",
+      apiToken: "sdk-secret",
+      fetch: async (_input, init) => {
+        authorization = new Headers(init?.headers).get("authorization");
+        return jsonResponse({ executionId: "11111111-1111-4111-8111-111111111111" }, 201);
+      },
+    });
+
+    await transport.startExecution({
+      agentId: "agent",
+      workflowType: "deployment",
+      intent: "deploy",
+      context: {},
+      constraints: {},
+    });
+    expect(authorization).toBe("Bearer sdk-secret");
+  });
+
   it("surfaces structured HTTP failures", async () => {
     const transport = httpTransport({
       baseUrl: "https://engram.example",
