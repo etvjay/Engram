@@ -43,7 +43,7 @@ The test creates three memories for the same agent:
 
 ## Control
 
-A same-context `runtime-v2` execution deliberately performs no memory recall and therefore uses `COMPAT_MODE`. It completes `PARTIAL` and requires rollback.
+A same-context `runtime-v2` execution deliberately performs no memory recall and therefore uses `COMPAT_MODE`. It records that decision, completes `PARTIAL`, and requires rollback.
 
 ## Treatment
 
@@ -55,13 +55,14 @@ Expected recall behavior:
 - current-environment superseded memory rejected with `MEMORY_SUPERSEDED`;
 - current memory exposed.
 
-The application then selects `STAGED_CURRENT` and declares the current memory as `CHANGED_ACTION` influence with the control execution as `CONTROL_RUN` counterfactual.
+The application then selects `STAGED_CURRENT` and declares the current memory as `CHANGED_ACTION` influence with the real control execution as `CONTROL_RUN` counterfactual. The treatment completes `SUCCESS` without rollback.
 
 ## Automated evidence
 
-Primary test:
+Primary tests:
 
 - `tests/e2e/memory-invalidation-supersession.test.ts`
+- `tests/e2e/memory-lifecycle-invalidation.test.ts`
 
 Scenario fixture:
 
@@ -69,4 +70,6 @@ Scenario fixture:
 
 Acceptance run:
 
-- GitHub Actions Engram CI `31940146076`
+- GitHub Actions Engram CI `31940295594`
+
+The acceptance run executed both EXP-013 E2Es successfully and passed the experiment-registry conformance gate after the duplicate EXP-013 evidence directory was removed.
