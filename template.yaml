@@ -54,6 +54,7 @@ Resources:
           - !Ref CorsOrigin
         AllowHeaders:
           - content-type
+          - authorization
         AllowMethods:
           - GET
           - POST
@@ -76,6 +77,42 @@ Resources:
           Properties:
             ApiId: !Ref EngramApi
             Path: /health
+            Method: GET
+        StartExecution:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EngramApi
+            Path: /v1/executions
+            Method: POST
+        Recall:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EngramApi
+            Path: /v1/executions/{id}/recall
+            Method: POST
+        RecordDecision:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EngramApi
+            Path: /v1/executions/{id}/decisions
+            Method: POST
+        RecordObservation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EngramApi
+            Path: /v1/executions/{id}/observations
+            Method: POST
+        CompleteExecution:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EngramApi
+            Path: /v1/executions/{id}/complete
+            Method: POST
+        ExecutionTrace:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EngramApi
+            Path: /v1/executions/{id}/trace
             Method: GET
         McpStatus:
           Type: HttpApi
@@ -101,12 +138,6 @@ Resources:
             ApiId: !Ref EngramApi
             Path: /v1/memory/search
             Method: POST
-        ExecutionTrace:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref EngramApi
-            Path: /v1/executions/{id}/trace
-            Method: GET
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
