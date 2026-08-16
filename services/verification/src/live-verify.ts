@@ -38,6 +38,12 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function firstScalar(row: Record<string, unknown> | undefined): string | null {
+  if (!row) return null;
+  const value = Object.values(row)[0];
+  return value === undefined || value === null ? null : String(value);
+}
+
 async function writeEvidence(value: unknown): Promise<void> {
   await mkdir("evidence/live", { recursive: true });
   await writeFile(output, `${JSON.stringify(value, null, 2)}\n`, "utf8");
@@ -66,8 +72,8 @@ async function main() {
       throw new Error(`Expected CockroachDB vector index ${ENGRAM_COSINE_VECTOR_INDEX} is not present after migrations`);
     }
 
-    const beamResult = await pool.query<{ value: string }>("SHOW vector_search_beam_size");
-    const rerankResult = await pool.query<{ value: string }>("SHOW vector_search_rerank_multiplier");
+    const beamResult = await pool.query<Record<string, unknown>>("SHOW vector_search_beam_size");
+    const rerankResult = await pool.query<Record<string, unknown>>("SHOW vector_search_rerank_multiplier");
 
     verificationStage = "RUN_RUNTIME_CAUSAL_SPINE";
     const embeddings = new TitanEmbeddingProvider();
@@ -173,8 +179,8 @@ async function main() {
         expectedVectorIndexPresent,
         memoryIndexes,
         vectorSearchSettings: {
-          beamSize: beamResult.rows[0]?.value ?? null,
-          rerankMultiplier: rerankResult.rows[0]?.value ?? null,
+          beamSize: firstScalar(beamResult.rows[0]),
+          rerankMultiplier: firstScalar(rerankResult.rows[0]),
         },
       },
       bedrock: {
