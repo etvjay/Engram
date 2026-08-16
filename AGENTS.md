@@ -28,7 +28,16 @@ Every usage guide must state:
 
 Also update `docs/frontend-modules/registry.json` whenever a frontend-consumable module is added, removed, renamed, or changes consumption mode.
 
-Do not make frontend developers infer module existence by searching implementation internals. The registry and adjacent usage guides are the canonical discovery surface.
+## Every module must declare a boundary
+
+Every top-level `packages/*` and `services/*` module must be classified. There is no silent/unclassified state.
+
+- If frontend-consumable: add the adjacent usage guide and `docs/frontend-modules/registry.json` entry.
+- If not frontend-consumable: add or maintain its entry in `docs/frontend-modules/server-only.json` with a concrete reason and sanctioned frontend boundary.
+
+Repository conformance tests enumerate top-level packages/services and fail when a module is unclassified.
+
+Do not make frontend developers infer module existence by searching implementation internals. The frontend registry, adjacent usage guides, and server-only registry are the canonical discovery surface.
 
 A frontend-consumable module is not Definition-of-Done until its usage documentation and registry entry exist and repository conformance tests pass.
 
