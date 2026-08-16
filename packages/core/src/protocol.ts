@@ -59,6 +59,7 @@ export type ProvenanceReference = z.infer<typeof ProvenanceReferenceSchema>;
 export const MemoryRecallReferenceSchema = z.object({
   retrievalId: z.string().uuid(),
   memoryId: z.string().uuid(),
+  memoryStateDigest: z.string().min(1).optional(),
   rank: z.number().int().positive(),
   score: z.number().min(0).max(1).optional(),
 });
@@ -77,6 +78,11 @@ export type MemoryInfluence = z.infer<typeof MemoryInfluenceSchema>;
 /**
  * Retrieval and influence are deliberately separate protocol objects.
  * A recalled memory is not evidence that it affected a decision.
+ *
+ * `memoryStateDigest` binds an exposed recall to the authority-relevant memory
+ * state that was actually shown. It is optional only so historical v1 recall
+ * records remain readable; a newly recorded influence must fail closed when
+ * its persisted recall lacks this binding.
  */
 export const MemoryRecallSchema = z.object({
   id: z.string().uuid(),
