@@ -102,6 +102,22 @@ describe("Engram API contract", () => {
     });
   });
 
+  it("keeps multi-source admission visible in the machine-readable frontend contract", async () => {
+    const openapi = JSON.parse(
+      await readFile(new URL("../../openapi.json", import.meta.url), "utf8"),
+    ) as {
+      components?: {
+        schemas?: {
+          AdmissionSignal?: {
+            properties?: Record<string, unknown>;
+          };
+        };
+      };
+    };
+
+    expect(openapi.components?.schemas?.AdmissionSignal?.properties).toHaveProperty("sourceExecutionIds");
+  });
+
   it("keeps SAM routes and API-token deployment configuration aligned", async () => {
     const template = await readFile(new URL("../../template.yaml", import.meta.url), "utf8");
     for (const route of [
