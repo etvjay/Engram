@@ -89,16 +89,37 @@ export class CockroachMemoryRepository implements MemoryRepository {
 
   async recordOutcome(outcome: Outcome): Promise<void> {
     await withTransaction(this.pool, async (client) => {
-      await client.query(
+      const inserted = await client.query<{ id: string }>(
         `INSERT INTO outcomes (id, execution_id, status, failure_type, summary, result, evidence_state)
          VALUES ($1,$2,$3,$4,$5,$6::JSONB,$7)
-         ON CONFLICT (execution_id) DO UPDATE SET status=excluded.status, failure_type=excluded.failure_type, summary=excluded.summary, result=excluded.result, evidence_state=excluded.evidence_state`,
+         ON CONFLICT (execution_id) DO NOTHING
+         RETURNING id`,
         [outcome.id, outcome.executionId, outcome.status, outcome.failureType ?? null, outcome.summary, asJson(outcome.result), outcome.evidenceState],
       );
-      await client.query(
-        `UPDATE executions SET status=$2, completed_at=now() WHERE id=$1`,
-        [outcome.executionId, outcome.status],
+
+      if (inserted.rowCount && inserted.rowCount > 0) {
+        await client.query(
+          `UPDATE executions SET status=$2, completed_at=now() WHERE id=$1`,
+          [outcome.executionId, outcome.status],
+        );
+        return;
+      }
+
+      const replay = await client.query<{ id: string }>(
+        `SELECT id
+           FROM outcomes
+          WHERE execution_id=$2
+            AND id=$1
+            AND status=$3
+            AND failure_type IS NOT DISTINCT FROM $4::STRING
+            AND summary=$5
+            AND result=$6::JSONB
+            AND evidence_state=$7`,
+        [outcome.id, outcome.executionId, outcome.status, outcome.failureType ?? null, outcome.summary, asJson(outcome.result), outcome.evidenceState],
       );
+      if (!replay.rows[0]) {
+        throw new Error(`OUTCOME_IDEMPOTENCY_CONFLICT:${outcome.executionId}`);
+      }
     });
   }
 
