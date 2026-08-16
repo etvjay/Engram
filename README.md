@@ -149,8 +149,10 @@ Production retrieval is agent-scoped and cosine based. Successful vector orderin
 
 ## TypeScript SDK
 
+Inside this monorepo, the canonical SDK barrel is `packages/sdk/src/index.ts` and exposes `Engram`, `httpTransport`, `runtimeTransport`, and the transport types:
+
 ```ts
-import { Engram, httpTransport } from "@engram/sdk";
+import { Engram, httpTransport } from "./packages/sdk/src/index.js";
 
 const engram = new Engram(httpTransport({
   baseUrl: process.env.ENGRAM_API_URL!,
@@ -178,7 +180,7 @@ await execution.recordDecision({
 });
 ```
 
-The package is currently a monorepo package surface; public registry publication is not claimed yet.
+The SDK is currently a monorepo package surface; publication as an installable `@engram/sdk` registry package is not claimed yet.
 
 ## Python SDK
 
