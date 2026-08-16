@@ -5,10 +5,11 @@ import {
   getCockroachMcpStatus,
   inspectMemoryProvenanceViaMcp,
 } from "../../../packages/cockroach-mcp/src/client.js";
+import { AtomicCockroachRuntimeStore } from "../../../packages/cockroach/src/atomic-runtime-store.js";
 import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
 import { applyEngramMigrations } from "../../../packages/cockroach/src/migrations.js";
 import { CockroachMemoryRepository } from "../../../packages/cockroach/src/repository.js";
-import { AtomicCockroachRuntimeStore } from "../../../packages/cockroach/src/atomic-runtime-store.js";
+import { explainEngramMemorySearch } from "../../../packages/cockroach/src/vector-plan.js";
 import { EngramRuntime } from "../../../packages/runtime/src/runtime.js";
 import { DEMO_RUNTIME_POLICIES } from "../../demo/src/runtime-policy.js";
 import { runEngramRuntimeDemo } from "../../demo/src/run-runtime-demo.js";
@@ -50,7 +51,8 @@ async function main() {
     const appliedMigrations = await applyEngramMigrations(pool);
 
     verificationStage = "RUN_RUNTIME_CAUSAL_SPINE";
-    const repository = new CockroachMemoryRepository(pool, new TitanEmbeddingProvider());
+    const embeddings = new TitanEmbeddingProvider();
+    const repository = new CockroachMemoryRepository(pool, embeddings);
     const store = new AtomicCockroachRuntimeStore(pool, repository);
     const runtime = new EngramRuntime(store, DEMO_RUNTIME_POLICIES);
     const agentId = `engram-live-${randomUUID()}`;
@@ -73,6 +75,20 @@ async function main() {
 
     if (!recallCompleted) throw new Error("Runtime trace does not contain a persisted recall evaluation");
     if (!influenceAccepted || !influenced) throw new Error("Runtime trace does not prove accepted memory influence");
+
+    verificationStage = "EXPLAIN_VECTOR_RETRIEVAL";
+    const explainEmbedding = await embeddings.embed("multi venue acquisition under thin liquidity where Venue C may fail");
+    const vectorPlan = await explainEngramMemorySearch(pool, {
+      agentExternalId: agentId,
+      queryEmbedding: explainEmbedding,
+      workflowType: "multi_venue_execution",
+      environmentVersion: "demo-v1",
+      status: ["COMPENSATED", "FAILURE", "PARTIAL"],
+      limit: 8,
+    });
+    const cspannIndexUsage = vectorPlan.usesVectorSearch && vectorPlan.usesCosineIndex
+      ? "VERIFIED"
+      : "UNVERIFIED";
 
     verificationStage = "CONNECT_MANAGED_MCP";
     const mcpStatus = await getCockroachMcpStatus();
@@ -98,7 +114,8 @@ async function main() {
       boundaries: {
         externalVenueExecution: "SIMULATED",
         cockroachPersistence: "VERIFIED",
-        distributedVectorRetrieval: "VERIFIED",
+        vectorDistanceRetrieval: "VERIFIED",
+        cspannCosineIndexUsage: cspannIndexUsage,
         bedrockEmbedding: "VERIFIED",
         runtimeRecallExposure: "VERIFIED",
         runtimeInfluenceValidation: "VERIFIED",
@@ -107,6 +124,14 @@ async function main() {
         atomicEventSequencing: "VERIFIED",
         managedMcpConnection: "VERIFIED",
         managedMcpProvenanceQuery: "VERIFIED",
+      },
+      vectorIndex: {
+        expectedIndex: "memories_embedding_cosine_idx",
+        naturalPlan: true,
+        ...vectorPlan,
+        note: cspannIndexUsage === "VERIFIED"
+          ? "CockroachDB naturally selected the cosine vector index for the Engram retrieval query shape."
+          : "The query succeeded, but the natural optimizer plan did not prove cosine C-SPANN index use; do not promote ENG-003 from this artifact.",
       },
       invariant: {
         priorExecutionPersisted: true,
@@ -131,6 +156,7 @@ async function main() {
       runA: demo.runA.executionId,
       runB: demo.runB.executionId,
       runtimeInfluenceVerified: true,
+      cspannCosineIndexUsage,
     }));
   } finally {
     await pool.end();
@@ -156,7 +182,8 @@ main().catch(async (error) => {
       boundaries: {
         externalVenueExecution: "SIMULATED",
         cockroachPersistence: "UNKNOWN",
-        distributedVectorRetrieval: "UNKNOWN",
+        vectorDistanceRetrieval: "UNKNOWN",
+        cspannCosineIndexUsage: "UNKNOWN",
         bedrockEmbedding: "UNKNOWN",
         runtimeRecallExposure: "UNKNOWN",
         runtimeInfluenceValidation: "UNKNOWN",
