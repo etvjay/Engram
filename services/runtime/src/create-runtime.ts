@@ -1,5 +1,6 @@
 import { TitanEmbeddingProvider } from "../../../packages/bedrock/src/embeddings.js";
 import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
+import { CockroachMemoryPolicyRegistry } from "../../../packages/cockroach/src/policy-registry.js";
 import { CockroachMemoryRepository } from "../../../packages/cockroach/src/repository.js";
 import { CockroachRuntimeStore } from "../../../packages/cockroach/src/runtime-store.js";
 import { DEFAULT_RUNTIME_POLICIES } from "../../../packages/runtime/src/defaults.js";
@@ -12,7 +13,8 @@ export function createEngramRuntime(policies: RuntimePolicyBundle = DEFAULT_RUNT
   const pool = createCockroachPool();
   const repository = new CockroachMemoryRepository(pool, new TitanEmbeddingProvider());
   const store = new CockroachRuntimeStore(pool, repository);
-  return new EngramRuntime(store, policies);
+  const policyRegistry = new CockroachMemoryPolicyRegistry(pool);
+  return new EngramRuntime(store, policies, policyRegistry);
 }
 
 export function getEngramRuntime(): EngramRuntime {
