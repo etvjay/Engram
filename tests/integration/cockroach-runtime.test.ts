@@ -6,6 +6,7 @@ import { createCockroachPool } from "../../packages/cockroach/src/client.js";
 import { applyEngramMigrations } from "../../packages/cockroach/src/migrations.js";
 import { CockroachMemoryRepository } from "../../packages/cockroach/src/repository.js";
 import { CockroachRuntimeStore } from "../../packages/cockroach/src/runtime-store.js";
+import { AtomicCockroachRuntimeStore } from "../../packages/cockroach/src/atomic-runtime-store.js";
 import type { EngramRuntimeStore } from "../../packages/runtime/src/store.js";
 import { EngramRuntime } from "../../packages/runtime/src/runtime.js";
 import { DEFAULT_RUNTIME_POLICIES } from "../../packages/runtime/src/defaults.js";
@@ -37,6 +38,27 @@ suite("Cockroach-backed Engram runtime", () => {
 
   afterAll(async () => {
     await pool?.end();
+  });
+
+  it("allocates unique contiguous event sequences under concurrent callers", async () => {
+    const atomicStore = new AtomicCockroachRuntimeStore(pool, repository);
+    const started = await repository.startExecution({
+      agentId: `sequence-agent-${randomUUID()}`,
+      workflowType: "concurrency-proof",
+      intent: "allocate event sequences",
+      context: {},
+      constraints: {},
+    });
+
+    const count = 16;
+    const allocated = await Promise.all(
+      Array.from({ length: count }, () => atomicStore.nextEventSequence(started.executionId)),
+    );
+
+    expect(new Set(allocated).size).toBe(count);
+    expect([...allocated].sort((a, b) => a - b)).toEqual(
+      Array.from({ length: count }, (_, index) => index),
+    );
   });
 
   it("reloads an exposed recall after a cold start and persists influence provenance", async () => {
@@ -100,8 +122,6 @@ suite("Cockroach-backed Engram runtime", () => {
     });
     expect(recall.recall.candidates.some((candidate) => candidate.memoryId === memory.id)).toBe(true);
 
-    // New runtime instance simulates a Lambda cold start. Recall state must be
-    // reconstructed from CockroachDB, not retained in process memory.
     const secondInvocation = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
     await secondInvocation.recordDecision({
       executionId: current.executionId,
