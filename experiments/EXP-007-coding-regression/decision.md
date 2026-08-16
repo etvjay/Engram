@@ -2,7 +2,9 @@
 
 Date: 2026-08-16
 Status: **ACCEPTED**
-Evidence run: GitHub Actions Engram CI `31935273665`
+Evidence:
+- workload/negative-control CI `31935273665`
+- full runtime E2E CI `31935526015`
 
 ## Decision
 
