@@ -28,7 +28,7 @@
       "modulePath": "packages/core",
       "usageGuide": "packages/core/frontend-usage/README.md",
       "consumptionMode": "BROWSER_SAFE",
-      "summary": "Evidence, recall, influence, counterfactual and provenance schemas."
+      "summary": "Evidence, state-bound recall, influence, counterfactual and provenance schemas."
     },
     {
       "id": "execution-episode",
