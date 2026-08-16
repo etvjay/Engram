@@ -1,8 +1,10 @@
 # EXP-009 — Decision
 
 Date: 2026-08-16
-Status: **ACCEPTED at scenario/runtime level; aggregate repository rerun required after registry update**
-Scenario evidence: GitHub Actions Engram CI `31935785267`
+Status: **ACCEPTED**
+Evidence:
+- scenario/runtime proof CI `31935785267`
+- completed registry + aggregate acceptance CI `31935842159`
 
 ## Decision
 
@@ -28,8 +30,8 @@ The source execution may end `ABORTED` when the corrected action was never execu
 
 ## Architectural consequence
 
-Human correction remains evidence/input to Engram, not an Engram-generated policy decree. Scenario/application logic interprets the correction and owns the later action. Engram preserves the source, scope, recall, influence, and counterfactual provenance.
+Human correction remains evidence/input to Engram, not an Engram-generated universal policy decree. Scenario/application logic interprets the correction and owns the later action. Engram preserves the source, scope, recall, influence, and counterfactual provenance.
 
 ## Boundary
 
-The maintenance scenario is **SIMULATED**. Live operator/infrastructure integration remains externally unverified. Full repository acceptance is confirmed only after the experiment registry is updated and aggregate CI passes.
+The maintenance scenario is **SIMULATED**. Runtime behavior and evidence integrity are TESTED; live operator/infrastructure integration remains externally UNVERIFIED.
