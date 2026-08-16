@@ -224,7 +224,7 @@ export class EngramRuntime {
       const sourceExecutionIds = [...new Set(
         signal.sourceExecutionIds?.length ? signal.sourceExecutionIds : [execution.id],
       )];
-      const reasons = evaluateAdmissionSignal(signal, policies);
+      const reasons = evaluateAdmissionSignal(signal, policies, input.evidenceState);
       reasons.push(...await this.validateAdmissionSources(execution, sourceExecutionIds));
       if (reasons.length) {
         rejectedSignals.push({ kind: signal.kind, reasons });
