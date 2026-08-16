@@ -112,6 +112,28 @@ Engram's production retrieval predicate is scoped by agent identity and ranks ca
 
 ## D-019 — Inspection surfaces fail closed
 
+**Status:** SUPERSEDED by D-020
+
+The initial hardening decision protected traces, control-plane reads, memory search, and MCP/provenance inspection behind a dedicated inspection token. D-020 broadens and simplifies that initial boundary.
+
+## D-020 — All non-demo v1 API surfaces share one fail-closed bearer boundary
+
 **Status:** ACCEPTED
 
-Execution traces, control-plane reads, memory search, and MCP/provenance inspection expose operational history and therefore require explicit bearer-token authorization. If `ENGRAM_INSPECTION_TOKEN` is not configured, these inspection routes fail closed rather than silently becoming public. `/health` remains public. This token is an MVP inspection boundary, not a claim of complete multi-tenant identity or authorization.
+For the initial deployable API, every `/v1/*` route except the deterministic public hackathon demo requires `ENGRAM_API_TOKEN`. `GET /health` remains public. This includes both operational reads and execution lifecycle mutations, so anonymous callers cannot inspect memory or create/modify arbitrary executions.
+
+Missing server configuration returns `API_AUTH_NOT_CONFIGURED`; invalid or absent Bearer credentials return `UNAUTHORIZED` before database or MCP access. The TypeScript and Python HTTP SDKs expose first-class token options for private/server-side clients.
+
+This single token is an MVP deployment guard, not production multi-tenant identity, tenancy, authorization, or RBAC. It must never be embedded in a public static frontend. Future actor-scoped identity may replace this boundary without changing Engram runtime semantics.
+
+## D-021 — Exact retrieval identity is part of memory-to-action provenance
+
+**Status:** ACCEPTED
+
+When an execution performs multiple recalls, an influence must reference the exact retrieval that exposed the cited memory. Execution-level membership is insufficient. A valid memory ID paired with the wrong retrieval ID fails closed with `RETRIEVAL_MISMATCH`; Engram must not silently repair or substitute provenance.
+
+## D-022 — Scenario policies remain outside the domain-neutral runtime
+
+**Status:** ACCEPTED
+
+Workload-specific action policies such as venue selection or software deployment strategy belong in scenario/application packages. They may consume recalled Operational Memory, but they do not become Engram runtime policy. This preserves the constitutional boundary that the application decides while Engram records and validates memory influence.
