@@ -96,5 +96,6 @@ Public endpoints currently include `/health` and `/v1/demo/run`.
 - `tests/sdk/sdk.test.ts`
 - `tests/sdk/http-transport.test.ts`
 - `tests/runtime/multi-source-admission.test.ts`
+- `tests/e2e/repeated-handoff-pattern-memory.test.ts`
 
-**Evidence status:** IMPLEMENTED for multi-source admission; existing SDK transport behavior is TESTED. Multi-source acceptance remains subject to the exact-head aggregate CI that includes the new runtime tests. Published package registry consumption and public authenticated deployment remain UNVERIFIED.
+**Evidence status:** TESTED. Multi-source admission, runtime provenance validation, SDK/API/OpenAPI contract exposure, and the repeated-pattern causal example passed Engram CI `31937605893`. Published package registry consumption and public authenticated deployment remain UNVERIFIED.
