@@ -22,6 +22,19 @@ Use the control-plane API for dashboards, execution lists, memory explorer views
 
 The read model includes fields such as execution/memory counts, retrieval counts, exposed retrieval results, influenced decisions, changed actions, policy state, evidence-state counts, and source/provenance counters.
 
+## Example
+
+```ts
+const overview = await fetch(`${baseUrl}/v1/control/overview`, {
+  headers: { authorization: `Bearer ${sessionToken}` },
+}).then((response) => response.json());
+
+renderMetric("Executions", overview.executions);
+renderMetric("Changed actions", overview.changedActions);
+```
+
+Use a user/session-safe authorization boundary. Do not expose the privileged deployment token in a public bundle.
+
 ## Important invariants
 
 - counts are operational read-model data, not causal proof by themselves;
