@@ -47,8 +47,38 @@ export class CockroachRuntimeStore implements EngramRuntimeStore {
     return this.memory.persistMemory(memory, sourceExecutionIds);
   }
 
-  getTrace(executionId: string) {
-    return this.memory.getTrace(executionId);
+  async getTrace(executionId: string) {
+    const [baseTrace, runtimeEvaluations] = await Promise.all([
+      this.memory.getTrace(executionId),
+      this.pool.query<{
+        id: string;
+        execution_id: string;
+        event_type: RuntimeEvaluationEvent["eventType"];
+        payload: Record<string, unknown>;
+        created_at: Date;
+      }>(
+        `SELECT id, execution_id, event_type, payload, created_at
+           FROM runtime_evaluation_events
+          WHERE execution_id=$1
+          ORDER BY created_at, id`,
+        [executionId],
+      ),
+    ]);
+
+    const trace = typeof baseTrace === "object" && baseTrace !== null
+      ? baseTrace as Record<string, unknown>
+      : { baseTrace };
+
+    return {
+      ...trace,
+      runtimeEvaluations: runtimeEvaluations.rows.map((row) => ({
+        id: row.id,
+        executionId: row.execution_id,
+        eventType: row.event_type,
+        payload: row.payload,
+        createdAt: row.created_at,
+      })),
+    };
   }
 
   async getExecution(executionId: string): Promise<RuntimeExecutionRecord | null> {
