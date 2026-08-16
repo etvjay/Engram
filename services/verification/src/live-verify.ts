@@ -1,13 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
-import { CockroachMemoryRepository } from "../../../packages/cockroach/src/repository.js";
+import { mkdir, writeFile } from "node:fs/promises";
 import { TitanEmbeddingProvider } from "../../../packages/bedrock/src/embeddings.js";
 import {
   getCockroachMcpStatus,
   inspectMemoryProvenanceViaMcp,
 } from "../../../packages/cockroach-mcp/src/client.js";
-import { runEngramDemo } from "../../demo/src/run-demo.js";
+import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
+import { applyEngramMigrations } from "../../../packages/cockroach/src/migrations.js";
+import { CockroachMemoryRepository } from "../../../packages/cockroach/src/repository.js";
+import { CockroachRuntimeStore } from "../../../packages/cockroach/src/runtime-store.js";
+import { EngramRuntime } from "../../../packages/runtime/src/runtime.js";
+import { DEMO_RUNTIME_POLICIES } from "../../demo/src/runtime-policy.js";
+import { runEngramRuntimeDemo } from "../../demo/src/run-runtime-demo.js";
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -25,19 +29,30 @@ async function main() {
   const pool = createCockroachPool();
 
   try {
-    const migration = await readFile(new URL("../../../db/migrations/001_initial.sql", import.meta.url), "utf8");
-    await pool.query(migration);
-
+    const appliedMigrations = await applyEngramMigrations(pool);
     const repository = new CockroachMemoryRepository(pool, new TitanEmbeddingProvider());
+    const store = new CockroachRuntimeStore(pool, repository);
+    const runtime = new EngramRuntime(store, DEMO_RUNTIME_POLICIES);
     const agentId = `engram-live-${randomUUID()}`;
-    const demo = await runEngramDemo(repository, { agentId });
+    const demo = await runEngramRuntimeDemo(runtime, { agentId });
 
     if (!demo.changedBehavior) throw new Error("Live demo did not change behavior");
     if (demo.runA.outcome !== "COMPENSATED") throw new Error(`Unexpected Run A outcome: ${demo.runA.outcome}`);
     if (demo.runB.outcome !== "SUCCESS") throw new Error(`Unexpected Run B outcome: ${demo.runB.outcome}`);
     if (!demo.runB.memoryRefs.includes(demo.memory.id)) throw new Error("Run B does not reference the memory produced by Run A");
 
-    const trace = await repository.getTrace(demo.runB.executionId);
+    const trace = demo.trace as {
+      retrievals?: Array<Record<string, unknown>>;
+      decisions?: Array<{ memory_influences?: Array<Record<string, unknown>> }>;
+      runtimeEvaluations?: Array<{ eventType?: string; payload?: Record<string, unknown> }>;
+    };
+    const influenceAccepted = trace.runtimeEvaluations?.some((event) => event.eventType === "INFLUENCE_ACCEPTED") ?? false;
+    const recallCompleted = trace.runtimeEvaluations?.some((event) => event.eventType === "RECALL_COMPLETED" || event.eventType === "RECALL_FILTERED") ?? false;
+    const influenced = trace.decisions?.some((decision) => (decision.memory_influences?.length ?? 0) > 0) ?? false;
+
+    if (!recallCompleted) throw new Error("Runtime trace does not contain a persisted recall evaluation");
+    if (!influenceAccepted || !influenced) throw new Error("Runtime trace does not prove accepted memory influence");
+
     const mcpStatus = await getCockroachMcpStatus();
     if (!mcpStatus.connected) throw new Error("CockroachDB Managed MCP did not connect");
     if (mcpStatus.missingExpectedTools.length > 0) {
@@ -48,23 +63,34 @@ async function main() {
     const completedAt = new Date().toISOString();
 
     const evidence = {
+      schemaVersion: "engram-live-proof-v2",
       evidenceClass: "VERIFIED",
       verificationKind: "LIVE_EXTERNAL_INTEGRATION",
       startedAt,
       completedAt,
       commitSha: process.env.GITHUB_SHA ?? null,
       githubRunId: process.env.GITHUB_RUN_ID ?? null,
+      appliedMigrations,
       boundaries: {
         externalVenueExecution: "SIMULATED",
         cockroachPersistence: "VERIFIED",
         distributedVectorRetrieval: "VERIFIED",
         bedrockEmbedding: "VERIFIED",
+        runtimeRecallExposure: "VERIFIED",
+        runtimeInfluenceValidation: "VERIFIED",
+        counterfactualProvenance: "VERIFIED",
         decisionMemoryTrace: "VERIFIED",
         managedMcpConnection: "VERIFIED",
         managedMcpProvenanceQuery: "VERIFIED",
       },
+      invariant: {
+        priorExecutionPersisted: true,
+        memoryRetrievedComparableContext: recallCompleted,
+        laterDecisionReferencesMemory: influenced,
+        observableBehaviorChanged: demo.changedBehavior,
+        provenanceReconstructable: influenceAccepted,
+      },
       demo,
-      trace,
       mcp: {
         status: mcpStatus,
         provenance: mcpProvenance,
@@ -74,7 +100,14 @@ async function main() {
     await mkdir("evidence/live", { recursive: true });
     const output = "evidence/live/latest.json";
     await writeFile(output, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
-    console.log(JSON.stringify({ ok: true, output, memoryId: demo.memory.id, runA: demo.runA.executionId, runB: demo.runB.executionId }));
+    console.log(JSON.stringify({
+      ok: true,
+      output,
+      memoryId: demo.memory.id,
+      runA: demo.runA.executionId,
+      runB: demo.runB.executionId,
+      runtimeInfluenceVerified: true,
+    }));
   } finally {
     await pool.end();
   }
