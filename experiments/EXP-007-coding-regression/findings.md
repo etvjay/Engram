@@ -1,7 +1,9 @@
 # EXP-007 — Findings
 
 Date: 2026-08-16
-Evidence run: GitHub Actions Engram CI `31935273665`
+Evidence runs:
+- workload/negative-control suite: GitHub Actions Engram CI `31935273665`
+- full runtime E2E: GitHub Actions Engram CI `31935526015`
 Result: **PASS**
 
 ## Automated proofs
