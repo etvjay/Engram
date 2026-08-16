@@ -17,6 +17,7 @@ Experiment IDs are unique repository-wide. Before creating a new experiment dire
 | EXP-011 | `EXP-011-multi-agent-coordination` | Can a coordinator remember a prior multi-worker race and change later coordination without introducing implicit cross-agent memory sharing? |
 | EXP-012 | `EXP-012-repeated-handoff-pattern` | Can multiple successful executions jointly support a repeated-pattern memory whose exact source lineage changes a later comparable handoff? |
 | EXP-013 | `EXP-013-memory-invalidation-supersession` | Can historically valid but obsolete or explicitly superseded memory lose current action authority without deleting history? |
+| EXP-014 | `EXP-014-context-completeness-authority` | Can version-bound memory fail closed when a future execution omits the environment/tool metadata required to establish compatibility? |
 
 ## Evidence discipline
 
@@ -28,4 +29,4 @@ Experiment execution may be SIMULATED while memory/runtime/storage evidence is c
 
 ## Next ID
 
-The next unclaimed experiment ID is `EXP-014`.
+The next unclaimed experiment ID is `EXP-015`.
