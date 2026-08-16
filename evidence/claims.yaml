@@ -250,3 +250,15 @@ claims:
       - experiments/EXP-004-competing-memories
       - GitHub Actions Engram CI run 31935001862
     boundary: This is optional workload/evaluation-aware composition, not a universal Engram protocol default. Contradiction requires explicit relationship evidence and is not inferred from vector similarity.
+
+  - id: ENG-023
+    claim: Engram can reuse a prior failure-and-recovery episode to change a later comparable software deployment strategy with an observed control-run counterfactual.
+    state: TESTED
+    evidence:
+      - tests/e2e/deployment-recovery-memory.test.ts
+      - experiments/EXP-005-deployment-recovery-memory/hypothesis.md
+      - experiments/EXP-005-deployment-recovery-memory/setup.md
+      - experiments/EXP-005-deployment-recovery-memory/findings.md
+      - experiments/EXP-005-deployment-recovery-memory/decision.md
+      - GitHub Actions Engram CI run 31935125047
+    boundary: The deployment executor is deterministic experiment logic, not a live production deployment. Engram records recall, CHANGED_ACTION influence, the real control execution as counterfactual evidence, and the later observed outcome; the application owns strategy selection.
