@@ -50,7 +50,14 @@ class LifecycleStore implements EngramRuntimeStore {
 
   async getExecution(id: string) { return this.executions.get(id) ?? null; }
   async appendEvent(_event: ExecutionEvent) {}
-  async recordOutcome(outcome: Outcome) { this.outcomes.push(outcome); }
+  async recordOutcome(outcome: Outcome) {
+    this.outcomes.push(outcome);
+    const execution = this.executions.get(outcome.executionId);
+    if (execution) {
+      execution.status = outcome.status;
+      execution.completedAt = new Date();
+    }
+  }
   async persistMemory(memory: OperationalMemory, _sources: string[]) { this.memories.set(memory.id, memory); }
   async getMemory(id: string) { return this.memories.get(id) ?? null; }
 
@@ -102,6 +109,7 @@ class LifecycleStore implements EngramRuntimeStore {
   async getTrace(executionId: string) {
     return {
       execution: this.executions.get(executionId) ?? null,
+      outcome: this.outcomes.find((outcome) => outcome.executionId === executionId) ?? null,
       decisions: this.decisions.filter((decision) => decision.executionId === executionId),
       evaluations: this.evaluations.filter((event) => event.executionId === executionId),
     };
@@ -178,14 +186,35 @@ describe("memory lifecycle invalidation and supersession", () => {
     relationships.relationships.push(supersedes(current.id, supersededOld.id));
 
     // Control: without relationship-aware lifecycle eligibility, the compatible
-    // superseded lesson is still recall-visible. Environment drift is already
-    // rejected by core expiry/invalidation policy.
+    // superseded lesson remains actionable. Environment/tool drift is still
+    // rejected by the core expiry/invalidation policy.
     const control = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
     const controlRun = await start(control);
     const controlRecall = await control.recall({ executionId: controlRun.executionId, query: "release strategy" });
     expect(controlRecall.candidates.map((candidate) => candidate.memory.id)).toContain(supersededOld.id);
     expect(controlRecall.rejected.find((item) => item.memoryId === environmentOld.id)?.reasons)
       .toEqual(expect.arrayContaining(["INVALIDATED_ENVIRONMENT_CHANGE", "INVALIDATED_TOOL_MAJOR_VERSION_CHANGE"]));
+
+    await control.recordDecision({
+      executionId: controlRun.executionId,
+      decisionType: "RELEASE_STRATEGY",
+      selectedAction: { strategy: "legacy-blue-green" },
+      alternatives: [{ strategy: "progressive-canary" }],
+      reasoningSummary: "Without supersession-aware lifecycle eligibility, the still-compatible legacy lesson remains actionable.",
+      influences: [{
+        memoryId: supersededOld.id,
+        retrievalId: controlRecall.recall.id,
+        influenceType: "SUPPORTED_ACTION",
+        summary: "The compatible legacy prod-v2 memory supports blue-green release.",
+      }],
+    });
+    await control.complete({
+      executionId: controlRun.executionId,
+      status: "PARTIAL",
+      summary: "Legacy blue-green completed but incurred a full-drain availability penalty under the current operating standard.",
+      result: { strategy: "legacy-blue-green", availabilityPenalty: true },
+      evidenceState: "OBSERVED",
+    });
 
     // Treatment: explicit supersession participates in recall eligibility.
     const advisor = new RelationshipMemoryEligibilityAdvisor(relationships, {
@@ -216,10 +245,17 @@ describe("memory lifecycle invalidation and supersession", () => {
           action: { strategy: "legacy-blue-green" },
           source: "CONTROL_RUN",
           evidenceState: "OBSERVED",
-          explanation: "The control execution exposed the still-compatible legacy lesson without relationship-aware supersession filtering.",
+          explanation: "The same-context control actually selected the compatible legacy blue-green lesson when supersession filtering was disabled.",
           comparisonExecutionId: controlRun.executionId,
         },
       }],
+    });
+    await treatment.complete({
+      executionId: treatmentRun.executionId,
+      status: "SUCCESS",
+      summary: "Progressive canary satisfied the current release standard without the legacy full-drain penalty.",
+      result: { strategy: "progressive-canary", availabilityPenalty: false },
+      evidenceState: "OBSERVED",
     });
 
     // Historical evidence remains inspectable; lifecycle changes authority, not history.
@@ -227,11 +263,21 @@ describe("memory lifecycle invalidation and supersession", () => {
     expect(await treatment.inspectMemory(supersededOld.id)).toMatchObject({ id: supersededOld.id });
     expect(await treatment.inspectMemory(current.id)).toMatchObject({ id: current.id });
 
-    expect(store.evaluations.some((event) =>
-      event.executionId === treatmentRun.executionId && event.eventType === "RECALL_FILTERED",
-    )).toBe(true);
-    expect(store.evaluations.some((event) =>
-      event.executionId === treatmentRun.executionId && event.eventType === "INFLUENCE_ACCEPTED",
-    )).toBe(true);
+    const controlTrace = await control.trace(controlRun.executionId) as {
+      outcome: Outcome;
+      decisions: RuntimeDecisionRecord[];
+    };
+    const treatmentTrace = await treatment.trace(treatmentRun.executionId) as {
+      outcome: Outcome;
+      decisions: RuntimeDecisionRecord[];
+      evaluations: RuntimeEvaluationEvent[];
+    };
+    expect(controlTrace.decisions[0]?.selectedAction).toEqual({ strategy: "legacy-blue-green" });
+    expect(controlTrace.outcome.status).toBe("PARTIAL");
+    expect(treatmentTrace.decisions[0]?.selectedAction).toEqual({ strategy: "progressive-canary" });
+    expect(treatmentTrace.outcome.status).toBe("SUCCESS");
+    expect(treatmentTrace.decisions[0]?.influences[0]?.counterfactual?.comparisonExecutionId).toBe(controlRun.executionId);
+    expect(treatmentTrace.evaluations.some((event) => event.eventType === "RECALL_FILTERED")).toBe(true);
+    expect(treatmentTrace.evaluations.some((event) => event.eventType === "INFLUENCE_ACCEPTED")).toBe(true);
   });
 });
