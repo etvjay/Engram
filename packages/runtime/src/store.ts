@@ -17,6 +17,7 @@ import type {
 export interface EngramRuntimeStore {
   startExecution(input: ExecutionContext): Promise<{ executionId: string }>;
   getExecution(executionId: string): Promise<RuntimeExecutionRecord | null>;
+  setExecutionMemoryPolicy?(executionId: string, bundleVersion: string): Promise<void>;
 
   appendEvent(event: ExecutionEvent): Promise<void>;
   recordOutcome(outcome: Outcome): Promise<void>;
