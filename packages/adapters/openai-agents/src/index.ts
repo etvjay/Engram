@@ -105,19 +105,19 @@ export const openAIAgentsAdapter: ExecutionEpisodeAdapter<OpenAIAgentsExecutionS
   adapt(input): ExecutionEpisode {
     const startedAt = new Date(input.startedAt);
     const completedAt = input.completedAt ? new Date(input.completedAt) : undefined;
-    const observations = (input.result.newItems ?? []).map((item, index) => ({
+    const observations: ExecutionEpisode["observations"] = (input.result.newItems ?? []).map((item, index) => ({
       id: randomUUID(),
       type: itemType(item),
       payload: {
         index,
         item: serialize(item),
       },
-      evidenceState: "OBSERVED" as const,
+      evidenceState: "OBSERVED",
       observedAt: completedAt ?? startedAt,
       provenance: input.trace ? [{
-        sourceType: "EXTERNAL_SYSTEM" as const,
+        sourceType: "EXTERNAL_SYSTEM",
         sourceId: input.trace.traceId,
-        evidenceState: "OBSERVED" as const,
+        evidenceState: "OBSERVED",
         observedAt: completedAt ?? startedAt,
       }] : [],
     }));
