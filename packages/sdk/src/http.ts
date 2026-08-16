@@ -33,19 +33,18 @@ export class EngramHttpError extends Error {
 export function httpTransport(options: HttpTransportOptions): EngramTransport {
   const fetchImpl = options.fetch ?? globalThis.fetch;
   const baseUrl = options.baseUrl.replace(/\/$/, "");
-  const authorization = options.apiToken?.trim()
-    ? { authorization: `Bearer ${options.apiToken.trim()}` }
-    : {};
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const headers = new Headers({ "content-type": "application/json" });
+    const apiToken = options.apiToken?.trim();
+    if (apiToken) headers.set("authorization", `Bearer ${apiToken}`);
+    for (const [name, value] of Object.entries(options.headers ?? {})) headers.set(name, value);
+    const requestHeaders = new Headers(init.headers);
+    requestHeaders.forEach((value, name) => headers.set(name, value));
+
     const response = await fetchImpl(`${baseUrl}${path}`, {
       ...init,
-      headers: {
-        "content-type": "application/json",
-        ...authorization,
-        ...options.headers,
-        ...(init.headers ?? {}),
-      },
+      headers,
     });
     const text = await response.text();
     const body = text ? JSON.parse(text) : undefined;
