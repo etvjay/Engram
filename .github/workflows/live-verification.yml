@@ -1,0 +1,61 @@
+name: Engram Live Verification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      BEDROCK_EMBEDDING_MODEL: ${{ secrets.BEDROCK_EMBEDDING_MODEL }}
+      COCKROACH_MCP_URL: https://cockroachlabs.cloud/mcp
+      COCKROACH_MCP_CLUSTER_ID: ${{ secrets.COCKROACH_MCP_CLUSTER_ID }}
+      COCKROACH_MCP_API_KEY: ${{ secrets.COCKROACH_MCP_API_KEY }}
+      COCKROACH_MCP_DATABASE: ${{ secrets.COCKROACH_MCP_DATABASE }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify required secrets are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(DATABASE_URL AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY COCKROACH_MCP_CLUSTER_ID COCKROACH_MCP_API_KEY)
+          missing=0
+          for name in "${required[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is not configured"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - run: npm install
+      - run: npm run build
+
+      - name: Run live persistence, vector, Bedrock, and MCP proof
+        run: node dist/services/verification/src/live-verify.js
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engram-live-verification-${{ github.run_id }}
+          path: evidence/live/
+          if-no-files-found: warn
+          retention-days: 30
