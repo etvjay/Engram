@@ -127,6 +127,7 @@ class InMemoryRuntimeStore implements EngramRuntimeStore {
   }
 
   async updateRecallExposure(update: RecallExposureUpdate) {
+    const memoryStateById = new Map(update.exposedMemoryStates.map((state) => [state.memoryId, state.memoryStateDigest]));
     const search = this.searches.get(update.retrievalId)!;
     const executionId = [...this.executions.values()].find((execution) => execution.status === "RUNNING")!.id;
     this.recalls.set(update.retrievalId, {
@@ -140,6 +141,7 @@ class InMemoryRuntimeStore implements EngramRuntimeStore {
         .map((candidate, index) => ({
           retrievalId: update.retrievalId,
           memoryId: candidate.memory.id,
+          memoryStateDigest: memoryStateById.get(candidate.memory.id),
           rank: index + 1,
           score: candidate.finalScore,
         })),

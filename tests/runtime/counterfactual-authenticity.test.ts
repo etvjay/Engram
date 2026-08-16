@@ -62,6 +62,7 @@ class CounterfactualStore implements EngramRuntimeStore {
   }
 
   async updateRecallExposure(update: RecallExposureUpdate) {
+    const memoryStateById = new Map(update.exposedMemoryStates.map((state) => [state.memoryId, state.memoryStateDigest]));
     this.recalls.push({
       id: update.retrievalId,
       executionId: this.current.id,
@@ -71,6 +72,7 @@ class CounterfactualStore implements EngramRuntimeStore {
       candidates: update.exposedMemoryIds.map((memoryId, index) => ({
         retrievalId: update.retrievalId,
         memoryId,
+        memoryStateDigest: memoryStateById.get(memoryId),
         rank: index + 1,
         score: 0.99,
       })),

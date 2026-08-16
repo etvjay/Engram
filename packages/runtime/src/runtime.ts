@@ -3,6 +3,7 @@ import {
   MemoryInfluenceSchema,
   MemoryRecallSchema,
   type MemoryInfluence,
+  type MemoryRecall,
 } from "../../core/src/protocol.js";
 import { assertDecisionInfluencesValid } from "../../core/src/validate.js";
 import {
@@ -13,6 +14,7 @@ import {
 import type { MemoryPolicyRegistry } from "../../policy/src/registry.js";
 import type { MemoryPolicyBundle } from "../../policy/src/contracts.js";
 import type { MemoryEligibilityAdvisor } from "./eligibility.js";
+import { memoryStateDigest } from "./memory-state.js";
 import type { EngramRuntimeStore } from "./store.js";
 import {
   evaluateAdmissionSignal,
@@ -122,6 +124,7 @@ export class EngramRuntime {
       candidates: accepted.map((candidate) => ({
         retrievalId: raw.retrievalId,
         memoryId: candidate.memory.id,
+        memoryStateDigest: memoryStateDigest(candidate.memory),
         rank: candidate.rank,
         score: candidate.score,
       })),
@@ -130,11 +133,19 @@ export class EngramRuntime {
     await this.store.updateRecallExposure({
       retrievalId: raw.retrievalId,
       exposedMemoryIds: accepted.map((candidate) => candidate.memory.id),
+      exposedMemoryStates: recall.candidates.map((candidate) => ({
+        memoryId: candidate.memoryId,
+        memoryStateDigest: candidate.memoryStateDigest!,
+      })),
       rejected,
     });
     await this.evaluation(execution.id, rejected.length ? "RECALL_FILTERED" : "RECALL_COMPLETED", {
       retrievalId: recall.id,
       exposedMemoryIds: recall.candidates.map((candidate) => candidate.memoryId),
+      exposedMemoryStates: recall.candidates.map((candidate) => ({
+        memoryId: candidate.memoryId,
+        memoryStateDigest: candidate.memoryStateDigest,
+      })),
       rejected,
       policyVersion: recall.policyVersion,
       memoryPolicyBundleVersion: execution.memoryPolicyBundleVersion ?? null,
@@ -151,7 +162,7 @@ export class EngramRuntime {
 
     try {
       assertDecisionInfluencesValid({ executionId: execution.id, influences }, recalls);
-      await this.assertInfluencePolicy(execution, influences, policies);
+      await this.assertInfluencePolicy(execution, influences, policies, recalls);
     } catch (error) {
       await this.evaluation(execution.id, "INFLUENCE_REJECTED", {
         decisionType: input.decisionType,
@@ -305,12 +316,14 @@ export class EngramRuntime {
     execution: RuntimeExecutionRecord,
     influences: MemoryInfluence[],
     policies: RuntimePolicyBundle,
+    recalls: MemoryRecall[],
   ): Promise<void> {
     for (const influence of influences) {
       const memory = await this.store.getMemory(influence.memoryId);
       if (!memory) throw new Error(`Influential memory ${influence.memoryId} does not exist`);
       const reasons = evaluateInfluenceMemory(memory, execution, policies);
       if (memory.agentId !== execution.agentId) reasons.push("MEMORY_AGENT_MISMATCH");
+      reasons.push(...this.validateRecalledMemoryState(execution, memory, influence, recalls));
       reasons.push(...await this.validateMemorySourceLineage(memory));
       reasons.push(...await this.validateCounterfactualComparison(execution, influence));
       if (this.eligibilityAdvisor) {
@@ -331,6 +344,31 @@ export class EngramRuntime {
         throw new Error(`Memory ${memory.id} is not eligible to influence this execution: ${reasons.join(", ")}`);
       }
     }
+  }
+
+  private validateRecalledMemoryState(
+    execution: RuntimeExecutionRecord,
+    memory: OperationalMemory,
+    influence: MemoryInfluence,
+    recalls: MemoryRecall[],
+  ): string[] {
+    const candidates = recalls
+      .filter((recall) => recall.executionId === execution.id)
+      .filter((recall) => !influence.retrievalId || recall.id === influence.retrievalId)
+      .flatMap((recall) => recall.candidates)
+      .filter((candidate) => candidate.memoryId === memory.id);
+
+    if (candidates.length === 0) return [];
+    if (!influence.retrievalId && candidates.length > 1) {
+      return ["RECALL_MEMORY_STATE_AMBIGUOUS"];
+    }
+
+    const recalled = candidates[0]!;
+    if (!recalled.memoryStateDigest) return ["RECALL_MEMORY_STATE_UNBOUND"];
+    if (recalled.memoryStateDigest !== memoryStateDigest(memory)) {
+      return ["MEMORY_STATE_CHANGED_SINCE_RECALL"];
+    }
+    return [];
   }
 
   private async validateCounterfactualComparison(

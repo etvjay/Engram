@@ -67,6 +67,7 @@ class IncidentStore implements EngramRuntimeStore {
   }
   async getRecalls(executionId: string) { return this.recalls.filter((r) => r.executionId === executionId); }
   async updateRecallExposure(update: RecallExposureUpdate) {
+    const memoryStateById = new Map(update.exposedMemoryStates.map((state) => [state.memoryId, state.memoryStateDigest]));
     const pending = this.pending.get(update.retrievalId);
     if (!pending) throw new Error("unknown retrieval");
     this.recalls.push({
@@ -78,6 +79,7 @@ class IncidentStore implements EngramRuntimeStore {
       candidates: update.exposedMemoryIds.map((memoryId, index) => ({
         retrievalId: update.retrievalId,
         memoryId,
+        memoryStateDigest: memoryStateById.get(memoryId),
         rank: index + 1,
         score: 0.96 - index * 0.01,
       })),

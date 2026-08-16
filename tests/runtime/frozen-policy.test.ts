@@ -147,6 +147,7 @@ class FrozenPolicyStore implements EngramRuntimeStore {
   }
 
   async updateRecallExposure(update: RecallExposureUpdate) {
+    const memoryStateById = new Map(update.exposedMemoryStates.map((state) => [state.memoryId, state.memoryStateDigest]));
     const execution = [...this.executions.values()].find((item) => item.status === "RUNNING" && ![...this.recalls.values()].some((r) => r.executionId === item.id));
     if (!execution) return;
     this.recalls.set(update.retrievalId, {
@@ -158,6 +159,7 @@ class FrozenPolicyStore implements EngramRuntimeStore {
       candidates: update.exposedMemoryIds.map((memoryId, index) => ({
         retrievalId: update.retrievalId,
         memoryId,
+        memoryStateDigest: memoryStateById.get(memoryId),
         rank: index + 1,
         score: 0.5,
       })),

@@ -196,7 +196,7 @@ export class CockroachRuntimeStore implements EngramRuntimeStore {
       query: string;
       retrieval_policy_version: string | null;
       created_at: Date;
-      candidates: Array<{ memory_id: string; rank: number; final_score: number }>;
+      candidates: Array<{ memory_id: string; rank: number; final_score: number; memory_state_digest: string | null }>;
     }>(
       `SELECT mr.id, mr.query, mr.retrieval_policy_version, mr.created_at,
               COALESCE(
@@ -204,7 +204,8 @@ export class CockroachRuntimeStore implements EngramRuntimeStore {
                   json_build_object(
                     'memory_id', mrr.memory_id,
                     'rank', mrr.rank,
-                    'final_score', mrr.final_score
+                    'final_score', mrr.final_score,
+                    'memory_state_digest', mrr.memory_state_digest
                   ) ORDER BY mrr.rank
                 ) FILTER (WHERE mrr.memory_id IS NOT NULL AND mrr.exposed_to_agent = true),
                 '[]'::JSON
@@ -226,6 +227,7 @@ export class CockroachRuntimeStore implements EngramRuntimeStore {
       candidates: row.candidates.map((candidate) => ({
         retrievalId: row.id,
         memoryId: candidate.memory_id,
+        memoryStateDigest: candidate.memory_state_digest ?? undefined,
         rank: Number(candidate.rank),
         score: Number(candidate.final_score),
       })),
@@ -236,19 +238,20 @@ export class CockroachRuntimeStore implements EngramRuntimeStore {
     await this.pool.query(
       `UPDATE memory_retrieval_results
           SET exposed_to_agent = false,
-              rejection_reasons = NULL
+              rejection_reasons = NULL,
+              memory_state_digest = NULL
         WHERE retrieval_id=$1`,
       [update.retrievalId],
     );
 
-    if (update.exposedMemoryIds.length) {
+    for (const exposure of update.exposedMemoryStates) {
       await this.pool.query(
         `UPDATE memory_retrieval_results
             SET exposed_to_agent = true,
-                rejection_reasons = NULL
-          WHERE retrieval_id=$1
-            AND memory_id = ANY($2::UUID[])`,
-        [update.retrievalId, update.exposedMemoryIds],
+                rejection_reasons = NULL,
+                memory_state_digest = $3
+          WHERE retrieval_id=$1 AND memory_id=$2`,
+        [update.retrievalId, exposure.memoryId, exposure.memoryStateDigest],
       );
     }
 

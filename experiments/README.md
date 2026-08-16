@@ -22,6 +22,7 @@ Experiment IDs are unique repository-wide. Before creating a new experiment dire
 | EXP-016 | `EXP-016-runtime-agent-isolation-authority` | Can the runtime reject foreign-agent memory even when a storage adapter incorrectly returns or later mutates it? |
 | EXP-017 | `EXP-017-evidence-state-escalation` | Can derived Operational Memory be prevented from claiming stronger evidence than the execution outcome that admitted it? |
 | EXP-018 | `EXP-018-counterfactual-authenticity` | Can run-backed counterfactual evidence be prevented from using missing, fabricated, self-referential, foreign-agent or incomplete comparison executions? |
+| EXP-019 | `EXP-019-recall-influence-state-integrity` | Can a later decision be prevented from claiming influence when the authority-relevant state behind a recalled memory ID changed after exposure? |
 
 ## Evidence discipline
 
@@ -33,4 +34,4 @@ Experiment execution may be SIMULATED while memory/runtime/storage evidence is c
 
 ## Next ID
 
-The next unclaimed experiment ID is `EXP-019`.
+The next unclaimed experiment ID is `EXP-020`.

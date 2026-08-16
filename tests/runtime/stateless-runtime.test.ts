@@ -129,6 +129,7 @@ class PersistedStore implements EngramRuntimeStore {
   }
 
   async updateRecallExposure(update: RecallExposureUpdate) {
+    const memoryStateById = new Map(update.exposedMemoryStates.map((state) => [state.memoryId, state.memoryStateDigest]));
     if (!this.execution || !this.pendingSearch) throw new Error("Missing persisted state");
     this.recall = {
       id: update.retrievalId,
@@ -141,6 +142,7 @@ class PersistedStore implements EngramRuntimeStore {
         .map((candidate) => ({
           retrievalId: update.retrievalId,
           memoryId: candidate.memoryId,
+          memoryStateDigest: memoryStateById.get(candidate.memoryId),
           rank: candidate.rank,
           score: candidate.finalScore,
         })),
