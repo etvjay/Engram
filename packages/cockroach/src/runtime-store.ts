@@ -31,6 +31,26 @@ export class CockroachRuntimeStore implements EngramRuntimeStore {
     return this.memory.startExecution(input);
   }
 
+  async setExecutionMemoryPolicy(executionId: string, bundleVersion: string): Promise<void> {
+    const result = await this.pool.query(
+      `UPDATE executions
+          SET memory_policy_bundle_version=$2
+        WHERE id=$1 AND memory_policy_bundle_version IS NULL
+        RETURNING id`,
+      [executionId, bundleVersion],
+    );
+    if (result.rowCount === 1) return;
+
+    const existing = await this.pool.query<{ memory_policy_bundle_version: string | null }>(
+      `SELECT memory_policy_bundle_version FROM executions WHERE id=$1`,
+      [executionId],
+    );
+    const current = existing.rows[0]?.memory_policy_bundle_version;
+    if (current === bundleVersion) return;
+    if (!existing.rows[0]) throw new Error(`Execution ${executionId} does not exist`);
+    throw new Error(`EXECUTION_POLICY_FROZEN: execution ${executionId} already uses ${current ?? "no bundle"}`);
+  }
+
   appendEvent(event: ExecutionEvent) {
     return this.memory.appendEvent(event);
   }
@@ -93,6 +113,7 @@ export class CockroachRuntimeStore implements EngramRuntimeStore {
       environment_version: string | null;
       tool_version: string | null;
       policy_version: string | null;
+      memory_policy_bundle_version: string | null;
       status: RuntimeExecutionRecord["status"];
       started_at: Date;
       completed_at: Date | null;
@@ -100,6 +121,7 @@ export class CockroachRuntimeStore implements EngramRuntimeStore {
       `SELECT e.id, a.external_id AS agent_external_id, a.agent_version,
               e.workflow_type, e.intent, e.context, e.constraints,
               e.environment_version, e.tool_version, e.policy_version,
+              e.memory_policy_bundle_version,
               e.status, e.started_at, e.completed_at
          FROM executions e
          JOIN agents a ON a.id=e.agent_id
@@ -119,6 +141,7 @@ export class CockroachRuntimeStore implements EngramRuntimeStore {
       environmentVersion: row.environment_version ?? undefined,
       toolVersion: row.tool_version ?? undefined,
       policyVersion: row.policy_version ?? undefined,
+      memoryPolicyBundleVersion: row.memory_policy_bundle_version ?? undefined,
       status: row.status,
       startedAt: row.started_at,
       completedAt: row.completed_at ?? undefined,
