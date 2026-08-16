@@ -13,6 +13,7 @@ import {
   type MemoryPolicyBundle,
 } from "../../packages/policy/src/contracts.js";
 import type {
+  MemoryPolicyAssignment,
   MemoryPolicyRegistry,
   RegisteredMemoryPolicyBundle,
 } from "../../packages/policy/src/registry.js";
@@ -77,10 +78,10 @@ class FakeRegistry implements MemoryPolicyRegistry {
 
   async resolve() { return this.bundles.get(this.active) ?? null; }
   async get(version: string) { return this.bundles.get(version) ?? null; }
-  async register() { throw new Error("not used"); }
-  async activate() { throw new Error("not used"); }
-  async retire() { throw new Error("not used"); }
-  async assign() { throw new Error("not used"); }
+  async register(): Promise<RegisteredMemoryPolicyBundle> { throw new Error("not used"); }
+  async activate(): Promise<RegisteredMemoryPolicyBundle> { throw new Error("not used"); }
+  async retire(): Promise<RegisteredMemoryPolicyBundle> { throw new Error("not used"); }
+  async assign(): Promise<MemoryPolicyAssignment> { throw new Error("not used"); }
 }
 
 class FrozenPolicyStore implements EngramRuntimeStore {
