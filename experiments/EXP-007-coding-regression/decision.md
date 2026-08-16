@@ -1,34 +1,37 @@
-# EXP-007 Decision
+# EXP-007 — Decision
+
+Date: 2026-08-16
+Status: **ACCEPTED**
+Evidence run: GitHub Actions Engram CI `31935273665`
 
 ## Decision
 
-**ACCEPTED.**
+Autonomous coding is accepted as a canonical Engram execution-memory acceptance scenario.
 
-The autonomous-coding scenario is accepted as evidence that Engram's execution-memory model can change an application's work methodology, not only its destination or route choice.
+It validates that prior execution experience can change an application's **work methodology**, not only a route or provider selection:
 
-## Accepted invariant
+`regression + revert → operational memory → comparable recall → changed coding methodology → observed outcome difference`
 
-Applicable prior execution experience may constrain a later coding strategy only when the causal operating conditions match closely enough to justify reuse.
+## Required causal form
 
-For this scenario:
+The canonical proof uses the full runtime lifecycle:
 
-- memory-free baseline: `PATCH_FIRST`;
-- prior comparable outcome: behavioral regression → revert → `COMPENSATED`;
-- memory-constrained treatment: `REGRESSION_TEST_THEN_PATCH`;
-- treatment outcome: `SUCCESS` in the deterministic simulator.
+1. source execution has no relevant memory and fails under `PATCH_FIRST`;
+2. Engram observes the regression/revert and admits Operational Memory;
+3. a same-context control omits recall and reproduces the failure;
+4. treatment recalls the source memory;
+5. the coding application changes to `REGRESSION_TEST_THEN_PATCH`;
+6. Engram records exact retrieval provenance, `CHANGED_ACTION`, and the real control execution as counterfactual evidence;
+7. treatment outcome is observed as successful.
 
-## Negative-control rule
+## Applicability rule
 
-High retrieval score is insufficient when subsystem or behavior class differs. Engram must preserve the distinction between semantic similarity and operational applicability.
+High retrieval score is insufficient when subsystem or behavior class differs. Operational applicability must remain separate from semantic similarity.
 
 ## Architectural consequence
 
-Coding-specific strategy remains application/scenario logic under `packages/scenarios/coding`. Engram runtime remains the evidence, recall, provenance, policy, and influence substrate; it does not prescribe test-first development.
-
-## Evidence
-
-Accepted from Engram CI run `31935273665`.
+Coding-specific strategy remains application/scenario logic. Engram records execution evidence, admits/retrieves memory, governs influence eligibility, and preserves provenance; it does not prescribe test-first development.
 
 ## Boundary
 
-The coding task is **SIMULATED**. Live coding-agent integration remains separately unverified.
+The coding workload is **SIMULATED**. Live repository-writing coding-agent integration remains externally unverified.
