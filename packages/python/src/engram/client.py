@@ -38,11 +38,13 @@ class Engram:
         self,
         base_url: str,
         *,
+        api_token: str | None = None,
         headers: Mapping[str, str] | None = None,
         request_fn: RequestFn | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
-        self._headers = {"content-type": "application/json", **dict(headers or {})}
+        auth_headers = {"authorization": f"Bearer {api_token.strip()}"} if api_token and api_token.strip() else {}
+        self._headers = {"content-type": "application/json", **auth_headers, **dict(headers or {})}
         self._request = request_fn or _default_request
 
     def start_execution(self, **execution: Any) -> "Execution":
