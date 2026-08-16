@@ -315,6 +315,7 @@ export class EngramRuntime {
   }
 
   private async nextSequence(executionId: string): Promise<number> {
+    if (this.store.nextEventSequence) return this.store.nextEventSequence(executionId);
     const trace = await this.store.getTrace(executionId) as { events?: unknown[] } | null;
     return Array.isArray(trace?.events) ? trace.events.length : 0;
   }
