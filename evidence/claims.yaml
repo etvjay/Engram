@@ -66,3 +66,12 @@ claims:
       - packages/execution-simulator/src/index.ts
       - services/demo/src/run-demo.ts
     boundary: The workload is intentionally SIMULATED. Persistence, retrieval, and provenance may be promoted independently through live infrastructure verification.
+
+  - id: ENG-009
+    claim: Engram has a reproducible live-verification path that can promote CockroachDB persistence, distributed vector retrieval, Bedrock embeddings, and Managed MCP provenance from IMPLEMENTED to VERIFIED.
+    state: TESTED
+    evidence:
+      - services/verification/src/live-verify.ts
+      - .github/workflows/live-verification.yml
+      - GitHub Actions Engram CI build
+    promotion_condition: Manually dispatch Engram Live Verification with the required CockroachDB, AWS, and MCP secrets; successful execution must emit evidence/live/latest.json.
