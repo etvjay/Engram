@@ -31,6 +31,7 @@ export type RuntimeExecutionRecord = {
   environmentVersion?: string;
   toolVersion?: string;
   policyVersion?: string;
+  memoryPolicyBundleVersion?: string;
   status: ExecutionStatus;
   startedAt: Date;
   completedAt?: Date;
