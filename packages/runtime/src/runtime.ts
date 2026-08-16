@@ -3,7 +3,6 @@ import {
   MemoryInfluenceSchema,
   MemoryRecallSchema,
   type MemoryInfluence,
-  type MemoryRecall,
 } from "../../core/src/protocol.js";
 import { assertDecisionInfluencesValid } from "../../core/src/validate.js";
 import {
@@ -224,6 +223,21 @@ export class EngramRuntime {
 
   async trace(executionId: string): Promise<unknown> {
     return this.store.getTrace(executionId);
+  }
+
+  async inspectMemory(memoryId: string): Promise<OperationalMemory | null> {
+    return this.store.getMemory(memoryId);
+  }
+
+  async compareExecutions(leftExecutionId: string, rightExecutionId: string): Promise<{
+    left: unknown;
+    right: unknown;
+  }> {
+    const [left, right] = await Promise.all([
+      this.store.getTrace(leftExecutionId),
+      this.store.getTrace(rightExecutionId),
+    ]);
+    return { left, right };
   }
 
   private async assertInfluencePolicy(executionId: string, influences: MemoryInfluence[]): Promise<void> {
