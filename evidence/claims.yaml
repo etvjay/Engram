@@ -305,3 +305,17 @@ claims:
       - experiments/EXP-009-human-correction-safety/decision.md
       - GitHub Actions Engram CI run 31935842159
     boundary: The maintenance workload is deterministic and SIMULATED. The source action is rejected before execution and correctly ends ABORTED; human correction is scoped evidence, not a universal Engram-generated policy. Live operator/infrastructure integration is not claimed.
+
+  - id: ENG-027
+    claim: Engram can preserve a successful but materially expensive execution as operational memory and use it to change a later comparable strategy while preserving SUCCESS as the source outcome.
+    state: TESTED
+    evidence:
+      - packages/scenarios/cost-aware/src/index.ts
+      - tests/scenarios/cost-aware-memory.test.ts
+      - tests/e2e/costly-success-memory.test.ts
+      - experiments/EXP-010-costly-success-memory/hypothesis.md
+      - experiments/EXP-010-costly-success-memory/setup.md
+      - experiments/EXP-010-costly-success-memory/findings.md
+      - experiments/EXP-010-costly-success-memory/decision.md
+      - GitHub Actions Engram CI run 31935999992
+    boundary: The workload and cost model are deterministic and SIMULATED. Source, memory-free control, and treatment all remain SUCCESS; the observed significant-cost consequence drives memory admission and changed action. Live cost savings are UNVERIFIED.
