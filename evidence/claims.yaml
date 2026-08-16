@@ -319,3 +319,48 @@ claims:
       - experiments/EXP-010-costly-success-memory/decision.md
       - GitHub Actions Engram CI run 31935999992
     boundary: The workload and cost model are deterministic and SIMULATED. Source, memory-free control, and treatment all remain SUCCESS; the observed significant-cost consequence drives memory admission and changed action. Live cost savings are UNVERIFIED.
+
+  - id: ENG-028
+    claim: Engram can preserve coordinator-owned execution memory about a multi-worker shared-target conflict and use it to change a later comparable coordination strategy without introducing implicit cross-agent memory sharing.
+    state: TESTED
+    evidence:
+      - packages/scenarios/multi-agent-coordination/src/index.ts
+      - tests/scenarios/multi-agent-coordination-memory.test.ts
+      - tests/e2e/multi-agent-coordination-memory.test.ts
+      - experiments/EXP-011-multi-agent-coordination/hypothesis.md
+      - experiments/EXP-011-multi-agent-coordination/setup.md
+      - experiments/EXP-011-multi-agent-coordination/findings.md
+      - experiments/EXP-011-multi-agent-coordination/decision.md
+      - GitHub Actions Engram CI run 31937408498
+    boundary: The coordination workload is deterministic and SIMULATED. Memory remains owned by the coordinator Engram agent; worker identities are execution evidence, not implicitly shared memory principals. Live distributed locks, leases and cross-agent memory authorization remain UNVERIFIED.
+
+  - id: ENG-029
+    claim: Engram supports validated multi-source Operational Memory provenance through optional admission-signal source execution IDs and exposes that contract consistently through runtime, TypeScript SDK documentation, HTTP API documentation and OpenAPI.
+    state: TESTED
+    evidence:
+      - packages/runtime/src/types.ts
+      - packages/runtime/src/runtime.ts
+      - tests/runtime/multi-source-admission.test.ts
+      - packages/sdk/frontend-usage/README.md
+      - services/api/frontend-usage/README.md
+      - openapi-usage/README.md
+      - openapi.json
+      - tests/conformance/api-contract.test.ts
+      - tests/conformance/frontend-module-registry.test.ts
+      - GitHub Actions Engram CI run 31937408498
+    boundary: Explicit source sets are deduplicated, must include the admitting execution, and must reference existing executions owned by the same Engram agent. Multiple sources are provenance, not confidence inflation, consensus, proof of truth or cross-agent shared memory. Live CockroachDB persistence of a multi-source example remains separately UNVERIFIED.
+
+  - id: ENG-030
+    claim: Engram can preserve a repeated operational pattern supported by multiple successful prior executions and use that multi-source memory to change a later comparable action while all source outcomes remain SUCCESS.
+    state: TESTED
+    evidence:
+      - packages/scenarios/handoff-pattern/src/index.ts
+      - tests/scenarios/handoff-pattern-memory.test.ts
+      - tests/e2e/repeated-handoff-pattern-memory.test.ts
+      - tests/runtime/multi-source-admission.test.ts
+      - experiments/EXP-012-repeated-handoff-pattern/hypothesis.md
+      - experiments/EXP-012-repeated-handoff-pattern/setup.md
+      - experiments/EXP-012-repeated-handoff-pattern/findings.md
+      - experiments/EXP-012-repeated-handoff-pattern/decision.md
+      - GitHub Actions Engram CI run 31937605893
+    boundary: The handoff workload and timing model are deterministic and SIMULATED. Source multiplicity records evidence lineage and does not automatically make the derived pattern true or more authoritative. Live multi-agent handoff latency improvements remain UNVERIFIED.
