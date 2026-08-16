@@ -1,5 +1,5 @@
 ALTER TABLE memory_retrieval_results
-  ADD COLUMN IF NOT EXISTS exposed_to_agent BOOL NOT NULL DEFAULT true;
+  ADD COLUMN IF NOT EXISTS exposed_to_agent BOOL NOT NULL DEFAULT false;
 
 ALTER TABLE memory_retrieval_results
   ADD COLUMN IF NOT EXISTS rejection_reasons JSONB;
