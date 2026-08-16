@@ -125,6 +125,12 @@ async function main() {
         managedMcpConnection: "VERIFIED",
         managedMcpProvenanceQuery: "VERIFIED",
       },
+      bedrock: {
+        provider: embeddings.provider,
+        modelId: embeddings.modelId,
+        region: embeddings.region,
+        dimensions: embeddings.dimensions,
+      },
       vectorIndex: {
         expectedIndex: ENGRAM_COSINE_VECTOR_INDEX,
         naturalPlan: true,
@@ -157,6 +163,7 @@ async function main() {
       runB: demo.runB.executionId,
       runtimeInfluenceVerified: true,
       cspannCosineIndexUsage,
+      bedrockModelId: embeddings.modelId,
     }));
   } finally {
     await pool.end();
