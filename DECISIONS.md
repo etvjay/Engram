@@ -149,3 +149,15 @@ The usage contract must state the consumption mode, canonical import/route, inpu
 Frontend discoverability is part of Definition of Done. A frontend team must not need to inspect implementation internals to discover whether a supported surface exists. Server-only modules are explicitly cataloged so absence from the frontend registry is not confused with absence from the system.
 
 Repository conformance tests enforce the registry and guide requirements. `AGENTS.md` and `CONTRIBUTING.md` apply the same rule to automated agents and human contributors.
+
+## D-024 — Recall-to-influence provenance is bound to memory state
+
+**Status:** ACCEPTED
+
+A memory ID and retrieval ID prove identity and exposure provenance, but they do not by themselves prove that the memory still has the same authority-relevant contents that were exposed. Every new recall exposure therefore persists a versioned digest of the Operational Memory state shown to the agent.
+
+Before accepting a later influence, Engram reloads the memory and requires its current canonical state digest to equal the persisted recall binding. A changed state fails closed with `MEMORY_STATE_CHANGED_SINCE_RECALL`; a historical persisted recall that never captured a state binding remains readable but cannot support a new influence claim and fails with `RECALL_MEMORY_STATE_UNBOUND`.
+
+The digest is provenance metadata, not proof that a memory is true, beneficial, current, or authorized. State continuity composes with exact retrieval identity, provenance authenticity, agent isolation, lifecycle eligibility, evidence-state limits, policy, contradiction, and counterfactual checks rather than replacing them.
+
+The canonical digest namespace begins at `engram.memory-state/v1:sha256:<digest>`. Equivalent object key ordering must canonicalize identically so storage serialization differences do not manufacture false state changes.
