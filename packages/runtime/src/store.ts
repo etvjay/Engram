@@ -1,4 +1,4 @@
-import type { MemoryRecall } from "../../core/src/protocol.js";
+import type { EvidenceState, MemoryRecall } from "../../core/src/protocol.js";
 import type {
   ExecutionContext,
   ExecutionEvent,
@@ -22,6 +22,12 @@ export interface EngramRuntimeStore {
 
   appendEvent(event: ExecutionEvent): Promise<void>;
   recordOutcome(outcome: Outcome): Promise<void>;
+  /**
+   * Required to establish evidence authority for historical executions that a
+   * multi-source admission signal declares as supporting evidence. Stores that
+   * cannot resolve it cause multi-source admission to fail closed.
+   */
+  getOutcomeEvidenceState?(executionId: string): Promise<EvidenceState | null>;
 
   searchMemory(input: MemorySearchInput): Promise<MemorySearchResult>;
   getMemory(memoryId: string): Promise<OperationalMemory | null>;

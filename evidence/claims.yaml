@@ -466,3 +466,19 @@ claims:
       - GitHub Actions Engram CI run 31947548380
     boundary: The digest proves continuity of the Operational Memory object state exposed by recall; it does not prove external facts are immutable or replace provenance, ownership, lifecycle, evidence, policy or counterfactual checks. Credentialed CockroachDB Cloud execution remains separately live-verification-gated.
 
+
+  - id: ENG-038
+    claim: Engram prevents multi-source Operational Memory from claiming stronger evidence than the weakest outcome among its declared supporting source executions and fails closed when historical source outcome evidence cannot be resolved.
+    state: TESTED
+    evidence:
+      - packages/runtime/src/runtime.ts
+      - packages/runtime/src/store.ts
+      - packages/cockroach/src/runtime-store.ts
+      - tests/runtime/multi-source-admission.test.ts
+      - tests/e2e/repeated-handoff-pattern-memory.test.ts
+      - experiments/EXP-020-multi-source-evidence-ceiling/hypothesis.md
+      - experiments/EXP-020-multi-source-evidence-ceiling/setup.md
+      - experiments/EXP-020-multi-source-evidence-ceiling/findings.md
+      - experiments/EXP-020-multi-source-evidence-ceiling/decision.md
+      - GitHub Actions EXP-020 scoped acceptance run 31948369159 attempt 3
+    boundary: The invariant governs declared supporting-source evidence authority. It does not cryptographically establish source truth, define weighted/materiality roles, or prove live CockroachDB Cloud execution.
