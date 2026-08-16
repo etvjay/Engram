@@ -71,6 +71,10 @@ class HandoffPatternStore implements EngramRuntimeStore {
     }
   }
 
+  async getOutcomeEvidenceState(executionId: string) {
+    return this.outcomes.get(executionId)?.evidenceState ?? null;
+  }
+
   async searchMemory(input: MemorySearchInput) {
     const retrievalId = randomUUID();
     if (!input.executionId) throw new Error("executionId required");
