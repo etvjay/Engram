@@ -3,6 +3,7 @@ import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
 import { CockroachMemoryRepository } from "../../../packages/cockroach/src/repository.js";
 import { TitanEmbeddingProvider } from "../../../packages/bedrock/src/embeddings.js";
 import { getCockroachMcpStatus, inspectMemoryProvenanceViaMcp } from "../../../packages/cockroach-mcp/src/client.js";
+import { getEngramRuntime } from "../../runtime/src/create-runtime.js";
 import { runEngramDemo } from "../../demo/src/run-demo.js";
 
 export type ApiGatewayV2Event = {
@@ -35,6 +36,55 @@ const SearchSchema = z.object({
   limit: z.number().int().min(1).max(50).optional(),
 });
 
+const RecallSchema = z.object({
+  query: z.string().min(1),
+  status: z.array(z.enum(["SUCCESS", "FAILURE", "PARTIAL", "COMPENSATED", "ABORTED", "UNKNOWN"])).optional(),
+});
+
+const DecisionBodySchema = z.object({
+  id: z.string().uuid().optional(),
+  decisionType: z.string().min(1),
+  selectedAction: z.record(z.string(), z.unknown()),
+  alternatives: z.array(z.record(z.string(), z.unknown())).optional(),
+  reasoningSummary: z.string().min(1),
+  influences: z.array(z.unknown()).optional(),
+  decidedAt: z.coerce.date().optional(),
+});
+
+const ObservationBodySchema = z.object({
+  id: z.string().uuid().optional(),
+  type: z.string().min(1),
+  payload: z.record(z.string(), z.unknown()),
+  evidenceState: z.enum(["VERIFIED", "OBSERVED", "SIMULATED", "INFERRED", "PROPOSED", "UNKNOWN"]),
+  observedAt: z.coerce.date().optional(),
+  provenance: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+const CompleteBodySchema = z.object({
+  status: z.enum(["SUCCESS", "FAILURE", "PARTIAL", "COMPENSATED", "ABORTED", "UNKNOWN"]),
+  summary: z.string().min(1),
+  result: z.record(z.string(), z.unknown()).optional(),
+  failureType: z.string().optional(),
+  evidenceState: z.enum(["VERIFIED", "OBSERVED", "SIMULATED", "INFERRED", "PROPOSED", "UNKNOWN"]),
+  completedAt: z.coerce.date().optional(),
+  admissionSignals: z.array(z.object({
+    kind: z.enum([
+      "UNEXPECTED_FAILURE",
+      "SUCCESSFUL_RECOVERY",
+      "POLICY_VIOLATION",
+      "HUMAN_CORRECTION",
+      "SAFETY_INTERVENTION",
+      "SIGNIFICANT_COST",
+      "NOVEL_CONDITION",
+      "REPEATED_PATTERN",
+    ]),
+    summary: z.string().min(1),
+    evidenceState: z.enum(["VERIFIED", "OBSERVED", "SIMULATED", "INFERRED", "PROPOSED", "UNKNOWN"]),
+    details: z.record(z.string(), z.unknown()).optional(),
+    confidence: z.number().min(0).max(1).optional(),
+  })).optional(),
+});
+
 function response(statusCode: number, payload: unknown): ApiGatewayV2Response {
   return {
     statusCode,
@@ -42,6 +92,8 @@ function response(statusCode: number, payload: unknown): ApiGatewayV2Response {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
       "access-control-allow-origin": process.env.CORS_ORIGIN ?? "*",
+      "access-control-allow-headers": "content-type,authorization",
+      "access-control-allow-methods": "GET,POST,OPTIONS",
     },
     body: JSON.stringify(payload),
   };
@@ -58,10 +110,13 @@ export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Res
   const path = event.rawPath ?? "/";
 
   try {
+    if (method === "OPTIONS") return response(204, {});
+
     if (method === "GET" && path === "/health") {
       return response(200, {
         service: "engram-api",
         status: "ok",
+        runtime: "engram-runtime/v1",
         evidenceBoundary: { externalExecution: "SIMULATED", persistence: "REAL", retrieval: "REAL", decisionTrace: "REAL" },
       });
     }
@@ -81,19 +136,55 @@ export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Res
       });
     }
 
+    if (method === "POST" && path === "/v1/executions") {
+      return response(201, await getEngramRuntime().startExecution(parseJsonBody(event)));
+    }
+
+    const executionRoute = path.match(/^\/v1\/executions\/([0-9a-fA-F-]{36})\/(recall|decisions|observations|complete|trace)$/);
+    if (executionRoute?.[1] && executionRoute[2]) {
+      const executionId = z.string().uuid().parse(executionRoute[1]);
+      const operation = executionRoute[2];
+      const runtime = getEngramRuntime();
+
+      if (method === "POST" && operation === "recall") {
+        const input = RecallSchema.parse(parseJsonBody(event));
+        return response(200, await runtime.recall({ executionId, ...input }));
+      }
+
+      if (method === "POST" && operation === "decisions") {
+        const input = DecisionBodySchema.parse(parseJsonBody(event));
+        return response(201, await runtime.recordDecision({
+          ...input,
+          executionId,
+          influences: input.influences as never[] | undefined,
+        }));
+      }
+
+      if (method === "POST" && operation === "observations") {
+        const input = ObservationBodySchema.parse(parseJsonBody(event));
+        await runtime.observe({ executionId, ...input });
+        return response(201, { ok: true });
+      }
+
+      if (method === "POST" && operation === "complete") {
+        const input = CompleteBodySchema.parse(parseJsonBody(event));
+        return response(200, await runtime.complete({ executionId, ...input }));
+      }
+
+      if (method === "GET" && operation === "trace") {
+        return response(200, await runtime.trace(executionId));
+      }
+    }
+
+    // Hackathon proof endpoint retained as a deterministic demonstration workload.
     if (method === "POST" && path === "/v1/demo/run") {
       return response(200, await runEngramDemo(getRepository()));
     }
 
+    // Legacy low-level memory search remains available during the v1 migration.
     if (method === "POST" && path === "/v1/memory/search") {
       const input = SearchSchema.parse(parseJsonBody(event));
       return response(200, await getRepository().searchMemory(input));
-    }
-
-    const traceMatch = path.match(/^\/v1\/executions\/([0-9a-fA-F-]{36})\/trace$/);
-    if (method === "GET" && traceMatch?.[1]) {
-      const executionId = z.string().uuid().parse(traceMatch[1]);
-      return response(200, await getRepository().getTrace(executionId));
     }
 
     return response(404, { error: "NOT_FOUND", method, path });
@@ -101,6 +192,10 @@ export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Res
     if (error instanceof z.ZodError) return response(400, { error: "INVALID_REQUEST", details: error.issues });
     const message = error instanceof Error ? error.message : "Unknown error";
     const memoryUnavailable = message.includes("DATABASE_URL") || message.includes("Bedrock") || message.includes("embedding") || message.includes("MCP");
-    return response(503, { error: memoryUnavailable ? "MEMORY_UNAVAILABLE" : "SERVICE_UNAVAILABLE", message });
+    const protocolViolation = message.includes("INFLUENCE_") || message.includes("RETRIEVAL_") || message.includes("not eligible") || message.includes("requires RUNNING");
+    return response(
+      memoryUnavailable ? 503 : protocolViolation ? 409 : 500,
+      { error: memoryUnavailable ? "MEMORY_UNAVAILABLE" : protocolViolation ? "PROTOCOL_VIOLATION" : "SERVICE_UNAVAILABLE", message },
+    );
   }
 }
