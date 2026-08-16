@@ -5,6 +5,7 @@ import {
   MemoryInfluenceSchema,
   MemoryRecallSchema,
 } from "../../packages/core/src/protocol.js";
+import { validateDecisionInfluences } from "../../packages/core/src/validate.js";
 import { ExecutionEpisodeSchema, EXECUTION_EPISODE_SCHEMA_VERSION } from "../../packages/episode/src/schema.js";
 import {
   AdmissionPolicySchema,
@@ -23,7 +24,6 @@ describe("Engram protocol conformance", () => {
     const retrievalId = uuid();
     const memoryId = uuid();
     const executionId = uuid();
-
     const recall = MemoryRecallSchema.parse({
       id: retrievalId,
       executionId,
@@ -34,6 +34,66 @@ describe("Engram protocol conformance", () => {
     });
 
     expect(recall.candidates).toHaveLength(1);
+    expect(validateDecisionInfluences({ executionId, influences: [] }, [recall])).toEqual([]);
+  });
+
+  it("rejects influence when the memory was never recalled", () => {
+    const executionId = uuid();
+    const influence = MemoryInfluenceSchema.parse({
+      memoryId: uuid(),
+      influenceType: "SUPPORTED_ACTION",
+      summary: "The prior outcome supported the selected action.",
+    });
+
+    const violations = validateDecisionInfluences({ executionId, influences: [influence] }, []);
+    expect(violations.map((violation) => violation.code)).toContain("INFLUENCE_WITHOUT_RECALL");
+  });
+
+  it("rejects a retrieval id that did not return the influential memory", () => {
+    const executionId = uuid();
+    const memoryId = uuid();
+    const recallId = uuid();
+    const wrongRecallId = uuid();
+    const recall = MemoryRecallSchema.parse({
+      id: recallId,
+      executionId,
+      query: "similar failures",
+      policyVersion: "retrieval-v1",
+      recalledAt: new Date(),
+      candidates: [{ retrievalId: recallId, memoryId, rank: 1 }],
+    });
+    const influence = MemoryInfluenceSchema.parse({
+      memoryId,
+      retrievalId: wrongRecallId,
+      influenceType: "CONSIDERED",
+      summary: "The memory was considered but not selected.",
+    });
+
+    const violations = validateDecisionInfluences({ executionId, influences: [influence] }, [recall]);
+    expect(violations.map((violation) => violation.code)).toContain("RETRIEVAL_MISMATCH");
+  });
+
+  it("requires a sourced counterfactual for CHANGED_ACTION", () => {
+    const executionId = uuid();
+    const memoryId = uuid();
+    const recallId = uuid();
+    const recall = MemoryRecallSchema.parse({
+      id: recallId,
+      executionId,
+      query: "comparable prior failures",
+      policyVersion: "retrieval-v1",
+      recalledAt: new Date(),
+      candidates: [{ retrievalId: recallId, memoryId, rank: 1 }],
+    });
+    const influence = MemoryInfluenceSchema.parse({
+      memoryId,
+      retrievalId: recallId,
+      influenceType: "CHANGED_ACTION",
+      summary: "The prior failure changed the selected route.",
+    });
+
+    const violations = validateDecisionInfluences({ executionId, influences: [influence] }, [recall]);
+    expect(violations.map((violation) => violation.code)).toContain("CHANGED_ACTION_WITHOUT_COUNTERFACTUAL");
   });
 
   it("requires an explicit counterfactual source", () => {
