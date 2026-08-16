@@ -14,6 +14,7 @@ Experiment IDs are unique repository-wide. Before creating a new experiment dire
 | EXP-008 | `EXP-008-competing-memory-provenance` | Does a later influence reference the exact retrieval that exposed the memory when multiple recalls compete? |
 | EXP-009 | `EXP-009-human-correction-safety` | Can an explicit human correction become durable operational memory and change a later comparable autonomous action before repeated intervention is required? |
 | EXP-010 | `EXP-010-costly-success-memory` | Can a successful but materially expensive execution become operational memory and change a later comparable strategy without being mislabeled as failure? |
+| EXP-011 | `EXP-011-multi-agent-coordination` | Can a coordinator remember a prior multi-worker race and change later coordination without introducing implicit cross-agent memory sharing? |
 
 ## Evidence discipline
 
@@ -25,4 +26,4 @@ Experiment execution may be SIMULATED while memory/runtime/storage evidence is c
 
 ## Next ID
 
-The next unclaimed experiment ID is `EXP-011`.
+The next unclaimed experiment ID is `EXP-012`.
