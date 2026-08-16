@@ -364,3 +364,18 @@ claims:
       - experiments/EXP-012-repeated-handoff-pattern/decision.md
       - GitHub Actions Engram CI run 31937605893
     boundary: The handoff workload and timing model are deterministic and SIMULATED. Source multiplicity records evidence lineage and does not automatically make the derived pattern true or more authoritative. Live multi-agent handoff latency improvements remain UNVERIFIED.
+
+  - id: ENG-031
+    claim: Engram can preserve historically valid memories while removing current action authority through distinct environment/tool invalidation and explicit supersession mechanisms, then allow only current eligible memory to influence a later comparable execution.
+    state: TESTED
+    evidence:
+      - packages/runtime/src/policy.ts
+      - packages/evaluation/src/eligibility-advisor.ts
+      - packages/scenarios/environment-evolution/src/index.ts
+      - tests/e2e/memory-invalidation-supersession.test.ts
+      - experiments/EXP-013-memory-invalidation-supersession/hypothesis.md
+      - experiments/EXP-013-memory-invalidation-supersession/setup.md
+      - experiments/EXP-013-memory-invalidation-supersession/findings.md
+      - experiments/EXP-013-memory-invalidation-supersession/decision.md
+      - GitHub Actions Engram CI run 31940146076
+    boundary: The runtime-upgrade workload is deterministic and SIMULATED. Invalidation reasons are policy-derived and supersession requires explicit relationship evidence; the experiment does not prove a complete production lifecycle state machine or live infrastructure upgrade safety.
