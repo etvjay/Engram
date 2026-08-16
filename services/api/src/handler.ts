@@ -1,15 +1,20 @@
 import { z } from "zod";
+import type pg from "pg";
 import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
 import { CockroachMemoryRepository } from "../../../packages/cockroach/src/repository.js";
+import { CockroachControlPlaneStore } from "../../../packages/cockroach/src/control-plane.js";
+import { CockroachMemoryEvaluationStore } from "../../../packages/cockroach/src/evaluation-store.js";
 import { TitanEmbeddingProvider } from "../../../packages/bedrock/src/embeddings.js";
 import { getCockroachMcpStatus, inspectMemoryProvenanceViaMcp } from "../../../packages/cockroach-mcp/src/client.js";
 import { getEngramRuntime } from "../../runtime/src/create-runtime.js";
-import { runEngramDemo } from "../../demo/src/run-demo.js";
+import { getEngramDemoRuntime } from "../../demo/src/create-demo-runtime.js";
+import { runEngramRuntimeDemo } from "../../demo/src/run-runtime-demo.js";
 
 export type ApiGatewayV2Event = {
   requestContext?: { http?: { method?: string } };
   rawPath?: string;
   pathParameters?: Record<string, string | undefined>;
+  queryStringParameters?: Record<string, string | undefined> | null;
   body?: string | null;
   isBase64Encoded?: boolean;
 };
@@ -20,11 +25,29 @@ export type ApiGatewayV2Response = {
   body: string;
 };
 
+let pool: pg.Pool | undefined;
 let repository: CockroachMemoryRepository | undefined;
+let controlPlane: CockroachControlPlaneStore | undefined;
+let evaluationStore: CockroachMemoryEvaluationStore | undefined;
+
+function getPool(): pg.Pool {
+  if (!pool) pool = createCockroachPool();
+  return pool;
+}
 
 function getRepository(): CockroachMemoryRepository {
-  if (!repository) repository = new CockroachMemoryRepository(createCockroachPool(), new TitanEmbeddingProvider());
+  if (!repository) repository = new CockroachMemoryRepository(getPool(), new TitanEmbeddingProvider());
   return repository;
+}
+
+function getControlPlane(): CockroachControlPlaneStore {
+  if (!controlPlane) controlPlane = new CockroachControlPlaneStore(getPool());
+  return controlPlane;
+}
+
+function getEvaluationStore(): CockroachMemoryEvaluationStore {
+  if (!evaluationStore) evaluationStore = new CockroachMemoryEvaluationStore(getPool());
+  return evaluationStore;
 }
 
 const SearchSchema = z.object({
@@ -105,6 +128,16 @@ function parseJsonBody(event: ApiGatewayV2Event): unknown {
   return JSON.parse(body);
 }
 
+function query(event: ApiGatewayV2Event) {
+  return event.queryStringParameters ?? {};
+}
+
+function page(event: ApiGatewayV2Event) {
+  const q = query(event);
+  const limit = q.limit === undefined ? undefined : z.coerce.number().int().min(1).max(200).parse(q.limit);
+  return { limit, cursor: q.cursor };
+}
+
 export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Response> {
   const method = event.requestContext?.http?.method?.toUpperCase() ?? "GET";
   const path = event.rawPath ?? "/";
@@ -176,15 +209,44 @@ export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Res
       }
     }
 
-    // Hackathon proof endpoint retained as a deterministic demonstration workload.
     if (method === "POST" && path === "/v1/demo/run") {
-      return response(200, await runEngramDemo(getRepository()));
+      return response(200, await runEngramRuntimeDemo(getEngramDemoRuntime()));
     }
 
-    // Legacy low-level memory search remains available during the v1 migration.
     if (method === "POST" && path === "/v1/memory/search") {
       const input = SearchSchema.parse(parseJsonBody(event));
       return response(200, await getRepository().searchMemory(input));
+    }
+
+    const cp = getControlPlane();
+    if (method === "GET" && path === "/v1/control/overview") return response(200, await cp.overview());
+    if (method === "GET" && path === "/v1/control/agents") return response(200, await cp.listAgents(page(event)));
+    if (method === "GET" && path === "/v1/control/executions") {
+      const q = query(event);
+      return response(200, await cp.listExecutions({ ...page(event), agentId: q.agentId, status: q.status, workflowType: q.workflowType }));
+    }
+    if (method === "GET" && path === "/v1/control/memories") {
+      const q = query(event);
+      return response(200, await cp.listMemories({ ...page(event), agentId: q.agentId, evidenceState: q.evidenceState, memoryType: q.memoryType }));
+    }
+    if (method === "GET" && path === "/v1/control/influences") {
+      const q = query(event);
+      return response(200, await cp.listInfluences({ ...page(event), executionId: q.executionId, memoryId: q.memoryId, influenceType: q.influenceType }));
+    }
+    if (method === "GET" && path === "/v1/control/policies") return response(200, await cp.listPolicyBundles(page(event)));
+    if (method === "GET" && path === "/v1/control/policy-assignments") return response(200, await cp.listPolicyAssignments(page(event)));
+
+    const evaluationMatch = path.match(/^\/v1\/memories\/([0-9a-fA-F-]{36})\/evaluation$/);
+    if (method === "GET" && evaluationMatch?.[1]) {
+      const memoryId = z.string().uuid().parse(evaluationMatch[1]);
+      const store = getEvaluationStore();
+      const [metrics, evaluations, relationships, experiments] = await Promise.all([
+        store.getUsefulnessMetrics(memoryId),
+        store.listEvaluations(memoryId),
+        store.listRelationships(memoryId),
+        store.listExperiments(memoryId),
+      ]);
+      return response(200, { memoryId, metrics, evaluations, relationships, experiments });
     }
 
     return response(404, { error: "NOT_FOUND", method, path });
