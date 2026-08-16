@@ -1,0 +1,150 @@
+name: EXP-020 scoped patch
+
+on:
+  push:
+    branches: [exp-020-multi-source-evidence-ceiling]
+    paths: [.github/workflows/exp020-apply.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: exp-020-multi-source-evidence-ceiling
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply exact scoped replacements
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          runtime = Path('packages/runtime/src/runtime.ts')
+          text = runtime.read_text()
+          old = '''import {
+            evaluateAdmissionSignal,
+            evaluateInfluenceMemory,
+            evaluateRecallCandidate,
+          } from "./policy.js";'''
+          new = '''import {
+            evidenceRank,
+            evaluateAdmissionSignal,
+            evaluateInfluenceMemory,
+            evaluateRecallCandidate,
+          } from "./policy.js";'''
+          assert text.count(old) == 1, 'runtime policy import target changed'
+          text = text.replace(old, new, 1)
+
+          old = '''      const reasons = evaluateAdmissionSignal(signal, policies, input.evidenceState);
+                reasons.push(...await this.validateAdmissionSources(execution, sourceExecutionIds));'''
+          new = '''      const reasons = evaluateAdmissionSignal(signal, policies, input.evidenceState);
+                reasons.push(...await this.validateAdmissionSources(
+                  execution,
+                  sourceExecutionIds,
+                  signal.evidenceState,
+                ));'''
+          assert text.count(old) == 1, 'admission call target changed'
+          text = text.replace(old, new, 1)
+
+          old = '''  private async validateAdmissionSources(
+              execution: RuntimeExecutionRecord,
+              sourceExecutionIds: string[],
+            ): Promise<string[]> {
+              const reasons: string[] = [];
+              if (!sourceExecutionIds.includes(execution.id)) {
+                reasons.push("ADMITTING_EXECUTION_NOT_IN_SOURCE_SET");
+              }
+          
+              for (const sourceExecutionId of sourceExecutionIds) {
+                const source = await this.store.getExecution(sourceExecutionId);
+                if (!source) {
+                  reasons.push(`SOURCE_EXECUTION_NOT_FOUND:${sourceExecutionId}`);
+                  continue;
+                }
+                if (source.agentId !== execution.agentId) {
+                  reasons.push(`SOURCE_EXECUTION_AGENT_MISMATCH:${sourceExecutionId}`);
+                }
+              }
+              return reasons;
+            }'''
+          new = '''  private async validateAdmissionSources(
+              execution: RuntimeExecutionRecord,
+              sourceExecutionIds: string[],
+              memoryEvidenceState: import("../../core/src/protocol.js").EvidenceState,
+            ): Promise<string[]> {
+              const reasons: string[] = [];
+              if (!sourceExecutionIds.includes(execution.id)) {
+                reasons.push("ADMITTING_EXECUTION_NOT_IN_SOURCE_SET");
+              }
+          
+              for (const sourceExecutionId of sourceExecutionIds) {
+                const source = await this.store.getExecution(sourceExecutionId);
+                if (!source) {
+                  reasons.push(`SOURCE_EXECUTION_NOT_FOUND:${sourceExecutionId}`);
+                  continue;
+                }
+                if (source.agentId !== execution.agentId) {
+                  reasons.push(`SOURCE_EXECUTION_AGENT_MISMATCH:${sourceExecutionId}`);
+                  continue;
+                }
+                if (sourceExecutionId === execution.id) continue;
+                if (!this.store.getOutcomeEvidenceState) {
+                  reasons.push(`SOURCE_EXECUTION_EVIDENCE_UNAVAILABLE:${sourceExecutionId}`);
+                  continue;
+                }
+                const sourceEvidenceState = await this.store.getOutcomeEvidenceState(sourceExecutionId);
+                if (!sourceEvidenceState) {
+                  reasons.push(`SOURCE_EXECUTION_OUTCOME_NOT_FOUND:${sourceExecutionId}`);
+                  continue;
+                }
+                if (evidenceRank(memoryEvidenceState) > evidenceRank(sourceEvidenceState)) {
+                  reasons.push(`MEMORY_EVIDENCE_EXCEEDS_SOURCE_EVIDENCE:${sourceExecutionId}`);
+                }
+              }
+              return reasons;
+            }'''
+          assert text.count(old) == 1, 'admission helper target changed'
+          runtime.write_text(text.replace(old, new, 1))
+
+          cockroach = Path('packages/cockroach/src/runtime-store.ts')
+          text = cockroach.read_text()
+          old = 'import type { MemoryRecall } from "../../core/src/protocol.js";'
+          new = 'import type { EvidenceState, MemoryRecall } from "../../core/src/protocol.js";'
+          assert text.count(old) == 1, 'cockroach import target changed'
+          text = text.replace(old, new, 1)
+
+          old = '''  recordOutcome(outcome: Outcome) {
+              return this.memory.recordOutcome(outcome);
+            }
+          
+            searchMemory(input: MemorySearchInput): Promise<MemorySearchResult> {'''
+          new = '''  recordOutcome(outcome: Outcome) {
+              return this.memory.recordOutcome(outcome);
+            }
+          
+            async getOutcomeEvidenceState(executionId: string): Promise<EvidenceState | null> {
+              const result = await this.pool.query<{ evidence_state: EvidenceState }>(
+                `SELECT evidence_state FROM outcomes WHERE execution_id=$1 LIMIT 1`,
+                [executionId],
+              );
+              return result.rows[0]?.evidence_state ?? null;
+            }
+          
+            searchMemory(input: MemorySearchInput): Promise<MemorySearchResult> {'''
+          assert text.count(old) == 1, 'cockroach outcome target changed'
+          cockroach.write_text(text.replace(old, new, 1))
+          PY
+      - run: npm install
+      - run: npm run check
+      - name: Commit verified patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/runtime/src/runtime.ts packages/cockroach/src/runtime-store.ts
+          git commit -m "runtime: enforce multi-source evidence ceiling"
+          git push origin HEAD:exp-020-multi-source-evidence-ceiling
