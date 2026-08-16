@@ -10,6 +10,7 @@
     "dev:web": "vite --config apps/web/vite.config.ts",
     "migrate": "tsx scripts/migrate.ts",
     "verify:live": "tsx scripts/live-verify.ts",
+    "mcp:stdio": "tsx packages/mcp-server/src/stdio.ts",
     "test": "vitest run tests/e2e/memory-caused-behavior.test.ts",
     "test:integration": "vitest run tests/integration/cockroach-memory-loop.test.ts",
     "test:all": "vitest run",
@@ -19,6 +20,7 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.864.0",
     "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "pg": "^8.16.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
