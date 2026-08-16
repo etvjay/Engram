@@ -33,6 +33,44 @@ const trace = await fetch(`${baseUrl}/v1/executions/${run.executionId}/trace`, {
 }).then(r => r.json());
 ```
 
+## Completing with multi-source admission evidence
+
+`POST /v1/executions/{id}/complete` accepts admission signals. An admission signal may include `sourceExecutionIds` when its claim is supported by multiple same-agent executions.
+
+```ts
+await fetch(`${baseUrl}/v1/executions/${currentExecutionId}/complete`, {
+  method: "POST",
+  headers: {
+    "content-type": "application/json",
+    authorization: `Bearer ${sessionToken}`,
+  },
+  body: JSON.stringify({
+    status: "SUCCESS",
+    summary: "Third comparable run confirmed the repeated pattern.",
+    evidenceState: "OBSERVED",
+    admissionSignals: [{
+      kind: "REPEATED_PATTERN",
+      summary: "Minimal handoffs repeatedly cause executor clarification.",
+      evidenceState: "OBSERVED",
+      sourceExecutionIds: [runAId, runBId, currentExecutionId],
+      details: {
+        pattern: "MISSING_CONSTRAINTS_CAUSES_CLARIFICATION",
+      },
+    }],
+  }),
+});
+```
+
+Runtime rules for an explicit source set:
+
+- duplicate execution IDs are deduplicated;
+- the execution being completed must be included;
+- every source execution must exist and belong to the same Engram agent;
+- an invalid source set rejects the memory admission signal;
+- omitting the field preserves normal single-source admission.
+
+`sourceExecutionIds` is provenance, not a confidence multiplier. Frontends should display source lineage without implying that multiple sources automatically make a derived memory true.
+
 ## Public surfaces
 
 - `GET /health`
@@ -49,14 +87,18 @@ Do not expose `ENGRAM_API_TOKEN` in a public static frontend. The current single
 - the frontend/application owns action selection;
 - trace/read endpoints reconstruct server-side evidence;
 - control-plane/evaluation state should be rendered as evidence, not silently converted into truth claims;
-- external demo execution remains SIMULATED.
+- external demo execution remains SIMULATED;
+- multi-source admission must retain exact source execution IDs rather than collapsing a pattern claim onto one convenient run.
 
 ## Canonical contract/tests
 
 - `openapi.json`
 - `services/api/src/handler.ts`
 - `services/api/src/auth.ts`
+- `packages/runtime/src/types.ts`
+- `packages/runtime/src/runtime.ts`
 - `tests/conformance/api-contract.test.ts`
 - `tests/security/api-inspection-auth.test.ts`
+- `tests/runtime/multi-source-admission.test.ts`
 
-**Evidence status:** TESTED for handler/contract/auth behavior. Public AWS deployment remains UNVERIFIED.
+**Evidence status:** IMPLEMENTED for multi-source admission and TESTED for existing handler/contract/auth behavior. Multi-source acceptance remains subject to the exact-head CI containing the new runtime tests. Public AWS deployment remains UNVERIFIED.
