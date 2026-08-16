@@ -61,12 +61,30 @@ export class CockroachMemoryRepository implements MemoryRepository {
   }
 
   async appendEvent(event: ExecutionEvent): Promise<void> {
-    await this.pool.query(
+    const inserted = await this.pool.query<{ id: string }>(
       `INSERT INTO execution_events (id, execution_id, sequence_no, event_type, payload, evidence_state, occurred_at)
        VALUES ($1,$2,$3,$4,$5::JSONB,$6,$7)
-       ON CONFLICT (execution_id, sequence_no) DO NOTHING`,
+       ON CONFLICT (execution_id, sequence_no) DO NOTHING
+       RETURNING id`,
       [event.id, event.executionId, event.sequenceNo, event.eventType, asJson(event.payload), event.evidenceState, event.occurredAt],
     );
+    if (inserted.rowCount && inserted.rowCount > 0) return;
+
+    const replay = await this.pool.query<{ id: string }>(
+      `SELECT id
+         FROM execution_events
+        WHERE execution_id=$2
+          AND sequence_no=$3
+          AND id=$1
+          AND event_type=$4
+          AND payload=$5::JSONB
+          AND evidence_state=$6
+          AND occurred_at=$7`,
+      [event.id, event.executionId, event.sequenceNo, event.eventType, asJson(event.payload), event.evidenceState, event.occurredAt],
+    );
+    if (!replay.rows[0]) {
+      throw new Error(`EVENT_IDEMPOTENCY_CONFLICT:${event.executionId}:${event.sequenceNo}`);
+    }
   }
 
   async recordOutcome(outcome: Outcome): Promise<void> {
