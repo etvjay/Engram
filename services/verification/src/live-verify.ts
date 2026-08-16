@@ -181,7 +181,7 @@ async function main() {
       runA: demo.runA.executionId,
       runB: demo.runB.executionId,
       runtimeInfluenceVerified: true,
-      cspannCosineIndexUsage,
+      cspannIndexUsage,
       bedrockModelId: embeddings.modelId,
     }));
   } finally {
