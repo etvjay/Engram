@@ -16,11 +16,11 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-      BEDROCK_EMBEDDING_MODEL: ${{ secrets.BEDROCK_EMBEDDING_MODEL }}
+      BEDROCK_EMBEDDING_MODEL: ${{ secrets.BEDROCK_EMBEDDING_MODEL || 'amazon.titan-embed-text-v2:0' }}
       COCKROACH_MCP_URL: https://cockroachlabs.cloud/mcp
       COCKROACH_MCP_CLUSTER_ID: ${{ secrets.COCKROACH_MCP_CLUSTER_ID }}
       COCKROACH_MCP_API_KEY: ${{ secrets.COCKROACH_MCP_API_KEY }}
-      COCKROACH_MCP_DATABASE: ${{ secrets.COCKROACH_MCP_DATABASE }}
+      COCKROACH_MCP_DATABASE: ${{ secrets.COCKROACH_MCP_DATABASE || 'defaultdb' }}
 
     steps:
       - uses: actions/checkout@v4
