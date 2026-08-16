@@ -100,5 +100,6 @@ Do not expose `ENGRAM_API_TOKEN` in a public static frontend. The current single
 - `tests/conformance/api-contract.test.ts`
 - `tests/security/api-inspection-auth.test.ts`
 - `tests/runtime/multi-source-admission.test.ts`
+- `tests/e2e/repeated-handoff-pattern-memory.test.ts`
 
-**Evidence status:** IMPLEMENTED for multi-source admission and TESTED for existing handler/contract/auth behavior. Multi-source acceptance remains subject to the exact-head CI containing the new runtime tests. Public AWS deployment remains UNVERIFIED.
+**Evidence status:** TESTED. Multi-source admission, runtime provenance validation, the HTTP/OpenAPI contract, and the repeated-pattern causal example passed Engram CI `31937605893`. Public AWS deployment remains UNVERIFIED.
