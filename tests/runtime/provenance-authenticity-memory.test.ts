@@ -179,4 +179,37 @@ describe("EXP-015 provenance authenticity", () => {
     expect(recall.candidates).toEqual([]);
     expect(recall.rejected[0]?.reasons).toContain("MEMORY_SOURCE_LINEAGE_CONTRADICTORY");
   });
+
+  it("revalidates claimed provenance before influence instead of trusting prior exposure indefinitely", async () => {
+    const source = execution("release-agent");
+    const current = execution("release-agent");
+    const candidate = memory("release-agent", {
+      sourceExecutionId: source.id,
+      sourceExecutionIds: [source.id],
+    });
+    const executions = [source];
+    const store = new ProvenanceStore(candidate, current, executions);
+    const runtime = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
+
+    const recall = await runtime.recall({ executionId: current.id, query: "prior safe release pattern" });
+    expect(recall.candidates.map((item) => item.memory.id)).toEqual([candidate.id]);
+
+    executions.splice(0, executions.length);
+
+    await expect(runtime.recordDecision({
+      executionId: current.id,
+      decisionType: "DEPLOYMENT_STRATEGY",
+      selectedAction: { strategy: "STAGED_ROLLOUT" },
+      reasoningSummary: "Attempted to reuse the previously exposed memory.",
+      influences: [{
+        memoryId: candidate.id,
+        retrievalId: recall.recall.id,
+        influenceType: "SUPPORTED_ACTION",
+        summary: "Prior pattern supports staged rollout.",
+      }],
+    })).rejects.toThrow(`MEMORY_SOURCE_EXECUTION_NOT_FOUND:${source.id}`);
+
+    expect(store.decisions).toHaveLength(0);
+    expect(store.evaluations.some((event) => event.eventType === "INFLUENCE_REJECTED")).toBe(true);
+  });
 });
