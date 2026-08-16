@@ -78,3 +78,9 @@ export function runtimeTransport(runtime: EngramRuntime): EngramTransport {
     trace: (executionId) => runtime.trace(executionId),
   };
 }
+
+export {
+  EngramHttpError,
+  httpTransport,
+  type HttpTransportOptions,
+} from "./http.js";
