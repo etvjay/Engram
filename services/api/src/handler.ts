@@ -138,6 +138,10 @@ function page(event: ApiGatewayV2Event) {
   return { limit, cursor: q.cursor };
 }
 
+function optionalUuid(value: string | undefined): string | undefined {
+  return value ? z.string().uuid().parse(value) : undefined;
+}
+
 export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Response> {
   const method = event.requestContext?.http?.method?.toUpperCase() ?? "GET";
   const path = event.rawPath ?? "/";
@@ -224,24 +228,29 @@ export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Res
     }
 
     const cp = getControlPlane();
-    if (method === "GET" && path === "/v1/control/overview") return response(200, await cp.overview());
-    if (method === "GET" && path === "/v1/control/agents") return response(200, await cp.listAgents(page(event)));
-    if (method === "GET" && path === "/v1/control/executions") {
+    if (method === "GET" && path === "/v1/control-plane/overview") return response(200, await cp.overview());
+    if (method === "GET" && path === "/v1/control-plane/agents") return response(200, await cp.listAgents(page(event)));
+    if (method === "GET" && path === "/v1/control-plane/executions") {
       const q = query(event);
-      return response(200, await cp.listExecutions({ ...page(event), agentId: q.agentId, status: q.status, workflowType: q.workflowType }));
+      return response(200, await cp.listExecutions({ ...page(event), agentId: optionalUuid(q.agentId), status: q.status, workflowType: q.workflowType }));
     }
-    if (method === "GET" && path === "/v1/control/memories") {
+    if (method === "GET" && path === "/v1/control-plane/memories") {
       const q = query(event);
-      return response(200, await cp.listMemories({ ...page(event), agentId: q.agentId, evidenceState: q.evidenceState, memoryType: q.memoryType }));
+      return response(200, await cp.listMemories({ ...page(event), agentId: optionalUuid(q.agentId), evidenceState: q.evidenceState, memoryType: q.memoryType }));
     }
-    if (method === "GET" && path === "/v1/control/influences") {
+    if (method === "GET" && path === "/v1/control-plane/influences") {
       const q = query(event);
-      return response(200, await cp.listInfluences({ ...page(event), executionId: q.executionId, memoryId: q.memoryId, influenceType: q.influenceType }));
+      return response(200, await cp.listInfluences({
+        ...page(event),
+        executionId: optionalUuid(q.executionId),
+        memoryId: optionalUuid(q.memoryId),
+        influenceType: q.influenceType,
+      }));
     }
-    if (method === "GET" && path === "/v1/control/policies") return response(200, await cp.listPolicyBundles(page(event)));
-    if (method === "GET" && path === "/v1/control/policy-assignments") return response(200, await cp.listPolicyAssignments(page(event)));
+    if (method === "GET" && path === "/v1/control-plane/policies") return response(200, await cp.listPolicyBundles(page(event)));
+    if (method === "GET" && path === "/v1/control-plane/policy-assignments") return response(200, await cp.listPolicyAssignments(page(event)));
 
-    const evaluationMatch = path.match(/^\/v1\/memories\/([0-9a-fA-F-]{36})\/evaluation$/);
+    const evaluationMatch = path.match(/^\/v1\/control-plane\/memories\/([0-9a-fA-F-]{36})\/evaluation$/);
     if (method === "GET" && evaluationMatch?.[1]) {
       const memoryId = z.string().uuid().parse(evaluationMatch[1]);
       const store = getEvaluationStore();
@@ -251,7 +260,14 @@ export async function handler(event: ApiGatewayV2Event): Promise<ApiGatewayV2Res
         store.listRelationships(memoryId),
         store.listExperiments(memoryId),
       ]);
-      return response(200, { memoryId, metrics, evaluations, relationships, experiments });
+      return response(200, {
+        memoryId,
+        metrics,
+        evaluations,
+        relationships,
+        experiments,
+        interpretationBoundary: "Effect labels require explicit evaluation evidence; retrieval or later success alone is not proof of benefit.",
+      });
     }
 
     return response(404, { error: "NOT_FOUND", method, path });
