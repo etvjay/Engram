@@ -63,7 +63,7 @@
       "modulePath": "services/demo",
       "usageGuide": "services/demo/frontend-usage/README.md",
       "consumptionMode": "API_ONLY",
-      "summary": "Deterministic public Run A -> memory -> Run B causal proof workload."
+      "summary": "Deterministic public Run A -> memory -> Run B causal proof workload with explicit runtime-reconstruction evidence metadata."
     }
   ]
 }

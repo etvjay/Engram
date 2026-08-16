@@ -38,6 +38,12 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function firstScalar(row: Record<string, unknown> | undefined): string | null {
+  if (!row) return null;
+  const value = Object.values(row)[0];
+  return value === undefined || value === null ? null : String(value);
+}
+
 async function writeEvidence(value: unknown): Promise<void> {
   await mkdir("evidence/live", { recursive: true });
   await writeFile(output, `${JSON.stringify(value, null, 2)}\n`, "utf8");
@@ -56,15 +62,38 @@ async function main() {
     verificationStage = "APPLY_MIGRATIONS";
     const appliedMigrations = await applyEngramMigrations(pool);
 
+    verificationStage = "INSPECT_COCKROACH_SCHEMA";
+    const versionResult = await pool.query<{ version: string }>("SELECT version() AS version");
+    const databaseResult = await pool.query<{ database_name: string }>("SELECT current_database() AS database_name");
+    const indexesResult = await pool.query<{ index_name: string }>("SHOW INDEXES FROM memories");
+    const memoryIndexes = [...new Set(indexesResult.rows.map((row) => row.index_name).filter(Boolean))].sort();
+    const expectedVectorIndexPresent = memoryIndexes.includes(ENGRAM_COSINE_VECTOR_INDEX);
+    if (!expectedVectorIndexPresent) {
+      throw new Error(`Expected CockroachDB vector index ${ENGRAM_COSINE_VECTOR_INDEX} is not present after migrations`);
+    }
+
+    const beamResult = await pool.query<Record<string, unknown>>("SHOW vector_search_beam_size");
+    const rerankResult = await pool.query<Record<string, unknown>>("SHOW vector_search_rerank_multiplier");
+
     verificationStage = "RUN_RUNTIME_CAUSAL_SPINE";
     const embeddings = new TitanEmbeddingProvider();
     const repository = new CockroachMemoryRepository(pool, embeddings);
     const store = new AtomicCockroachRuntimeStore(pool, repository);
     const runtime = new EngramRuntime(store, DEMO_RUNTIME_POLICIES);
     const agentId = `engram-live-${randomUUID()}`;
-    const demo = await runEngramRuntimeDemo(runtime, { agentId });
+    const demo = await runEngramRuntimeDemo(runtime, {
+      agentId,
+      reconstructRuntimeAfterRecall: () => {
+        const reconstructedRepository = new CockroachMemoryRepository(pool, embeddings);
+        const reconstructedStore = new AtomicCockroachRuntimeStore(pool, reconstructedRepository);
+        return new EngramRuntime(reconstructedStore, DEMO_RUNTIME_POLICIES);
+      },
+    });
 
     if (!demo.changedBehavior) throw new Error("Live demo did not change behavior");
+    if (!demo.runtimeReconstructedAfterRecall) {
+      throw new Error("Live demo did not reconstruct the Engram runtime after persisted recall");
+    }
     if (demo.runA.outcome !== "COMPENSATED") throw new Error(`Unexpected Run A outcome: ${demo.runA.outcome}`);
     if (demo.runB.outcome !== "SUCCESS") throw new Error(`Unexpected Run B outcome: ${demo.runB.outcome}`);
     if (!demo.runB.memoryRefs.includes(demo.memory.id)) throw new Error("Run B does not reference the memory produced by Run A");
@@ -119,7 +148,7 @@ async function main() {
 
     verificationStage = "WRITE_SUCCESS_EVIDENCE";
     const evidence = {
-      schemaVersion: "engram-live-proof-v2",
+      schemaVersion: "engram-live-proof-v3",
       evidenceClass: "VERIFIED",
       verificationKind: "LIVE_EXTERNAL_INTEGRATION",
       startedAt: verificationStartedAt,
@@ -130,16 +159,29 @@ async function main() {
       boundaries: {
         externalVenueExecution: "SIMULATED",
         cockroachPersistence: "VERIFIED",
+        cockroachSchemaAndVectorIndexPresence: "VERIFIED",
         vectorDistanceRetrieval: "VERIFIED",
         cspannCosineIndexUsage: cspannIndexUsage,
         bedrockEmbedding: "VERIFIED",
         runtimeRecallExposure: "VERIFIED",
+        runtimeReconstructionAfterRecall: "VERIFIED",
         runtimeInfluenceValidation: "VERIFIED",
         counterfactualProvenance: "VERIFIED",
         decisionMemoryTrace: "VERIFIED",
         atomicEventSequencing: "VERIFIED",
         managedMcpConnection: "VERIFIED",
         managedMcpProvenanceQuery: "VERIFIED",
+      },
+      cockroach: {
+        serverVersion: versionResult.rows[0]?.version ?? null,
+        database: databaseResult.rows[0]?.database_name ?? null,
+        expectedVectorIndex: ENGRAM_COSINE_VECTOR_INDEX,
+        expectedVectorIndexPresent,
+        memoryIndexes,
+        vectorSearchSettings: {
+          beamSize: firstScalar(beamResult.rows[0]),
+          rerankMultiplier: firstScalar(rerankResult.rows[0]),
+        },
       },
       bedrock: {
         provider: embeddings.provider,
@@ -156,11 +198,12 @@ async function main() {
         ...vectorPlan,
         note: cspannIndexUsage === "VERIFIED"
           ? "CockroachDB naturally selected the agent-scoped cosine vector index for the exact persisted Engram retrieval query shape."
-          : "The exact persisted retrieval query succeeded, but the natural optimizer plan did not prove cosine C-SPANN index use; do not promote ENG-003 from this artifact.",
+          : "The exact persisted retrieval query succeeded and the vector index exists, but the natural optimizer plan did not prove cosine C-SPANN index use; do not promote the C-SPANN claim from this artifact.",
       },
       invariant: {
         priorExecutionPersisted: true,
         memoryRetrievedComparableContext: recallCompleted,
+        persistedRecallSurvivesRuntimeReconstruction: demo.runtimeReconstructedAfterRecall && influenceAccepted,
         laterDecisionReferencesMemory: influenced,
         observableBehaviorChanged: demo.changedBehavior,
         provenanceReconstructable: influenceAccepted,
@@ -180,6 +223,7 @@ async function main() {
       memoryId: demo.memory.id,
       runA: demo.runA.executionId,
       runB: demo.runB.executionId,
+      runtimeReconstructedAfterRecall: demo.runtimeReconstructedAfterRecall,
       runtimeInfluenceVerified: true,
       cspannIndexUsage,
       bedrockModelId: embeddings.modelId,
@@ -194,7 +238,7 @@ main().catch(async (error) => {
   console.error(message);
   try {
     await writeEvidence({
-      schemaVersion: "engram-live-proof-v2",
+      schemaVersion: "engram-live-proof-v3",
       evidenceClass: "UNKNOWN",
       verificationKind: "LIVE_EXTERNAL_INTEGRATION_FAILED",
       startedAt: verificationStartedAt,
@@ -208,10 +252,12 @@ main().catch(async (error) => {
       boundaries: {
         externalVenueExecution: "SIMULATED",
         cockroachPersistence: "UNKNOWN",
+        cockroachSchemaAndVectorIndexPresence: "UNKNOWN",
         vectorDistanceRetrieval: "UNKNOWN",
         cspannCosineIndexUsage: "UNKNOWN",
         bedrockEmbedding: "UNKNOWN",
         runtimeRecallExposure: "UNKNOWN",
+        runtimeReconstructionAfterRecall: "UNKNOWN",
         runtimeInfluenceValidation: "UNKNOWN",
         counterfactualProvenance: "UNKNOWN",
         decisionMemoryTrace: "UNKNOWN",
