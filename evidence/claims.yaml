@@ -291,3 +291,17 @@ claims:
       - experiments/EXP-007-coding-regression/decision.md
       - GitHub Actions Engram CI run 31935526015
     boundary: The coding workload is deterministic and SIMULATED. Engram preserves the full source/control/treatment causal chain, but no live repository-writing coding-agent integration is claimed.
+
+  - id: ENG-026
+    claim: Engram can preserve an explicit human correction as operational memory and use it to change a later comparable autonomous action before repeated human intervention is required.
+    state: TESTED
+    evidence:
+      - packages/scenarios/operator-safety/src/index.ts
+      - tests/scenarios/operator-safety-memory.test.ts
+      - tests/e2e/human-correction-memory.test.ts
+      - experiments/EXP-009-human-correction-safety/hypothesis.md
+      - experiments/EXP-009-human-correction-safety/setup.md
+      - experiments/EXP-009-human-correction-safety/findings.md
+      - experiments/EXP-009-human-correction-safety/decision.md
+      - GitHub Actions Engram CI run 31935842159
+    boundary: The maintenance workload is deterministic and SIMULATED. The source action is rejected before execution and correctly ends ABORTED; human correction is scoped evidence, not a universal Engram-generated policy. Live operator/infrastructure integration is not claimed.
