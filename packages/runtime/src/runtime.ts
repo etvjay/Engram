@@ -85,6 +85,7 @@ export class EngramRuntime {
 
     for (const candidate of raw.candidates) {
       const reasons = evaluateRecallCandidate(candidate.memory, execution, policies);
+      if (candidate.memory.agentId !== execution.agentId) reasons.push("MEMORY_AGENT_MISMATCH");
       reasons.push(...await this.validateMemorySourceLineage(candidate.memory));
       if (candidate.finalScore < policies.retrieval.minimumScore) reasons.push("SCORE_BELOW_THRESHOLD");
       if (this.eligibilityAdvisor) {
@@ -309,6 +310,7 @@ export class EngramRuntime {
       const memory = await this.store.getMemory(influence.memoryId);
       if (!memory) throw new Error(`Influential memory ${influence.memoryId} does not exist`);
       const reasons = evaluateInfluenceMemory(memory, execution, policies);
+      if (memory.agentId !== execution.agentId) reasons.push("MEMORY_AGENT_MISMATCH");
       reasons.push(...await this.validateMemorySourceLineage(memory));
       if (this.eligibilityAdvisor) {
         reasons.push(...await this.eligibilityAdvisor.evaluate({
