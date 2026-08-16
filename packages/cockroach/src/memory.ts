@@ -16,19 +16,6 @@ export type HybridMemoryRow = {
   semantic_score: number;
 };
 
-export type VectorPlanEvidence = {
-  agentId: string;
-  indexName: "memories_agent_embedding_cosine_idx";
-  planLines: string[];
-  planText: string;
-  usesVectorSearch: boolean;
-  usesExpectedIndex: boolean;
-  fullScan: boolean;
-  cspannSelected: boolean;
-};
-
-const EXPECTED_VECTOR_INDEX = "memories_agent_embedding_cosine_idx" as const;
-
 function toVectorLiteral(values: number[]): string {
   if (values.length === 0) throw new Error("queryEmbedding must not be empty");
   if (values.some((value) => !Number.isFinite(value))) {
@@ -45,8 +32,22 @@ async function resolveAgentId(pool: Pool, externalId: string): Promise<string | 
   return result.rows[0]?.id ?? null;
 }
 
-function candidateSql(prefix = ""): string {
-  return `${prefix}
+/**
+ * Low-level candidate-search helper retained for compatibility. Canonical
+ * runtime retrieval lives in CockroachMemoryRepository; EXPLAIN evidence for
+ * that exact query shape lives in vector-plan.ts.
+ */
+export async function searchMemoryCandidates(
+  pool: Pool,
+  input: HybridSearchInput,
+): Promise<HybridMemoryRow[]> {
+  const limit = Math.min(Math.max(input.limit ?? 10, 1), 50);
+  const vector = toVectorLiteral(input.queryEmbedding);
+  const agentId = await resolveAgentId(pool, input.agentExternalId);
+  if (!agentId) return [];
+
+  const result = await pool.query<HybridMemoryRow>(
+    `
       SELECT
         m.id,
         m.summary,
@@ -61,66 +62,12 @@ function candidateSql(prefix = ""): string {
         AND ($3::STRING IS NULL OR m.structured_context->>'workflowType' = $3)
         AND ($4::STRING IS NULL OR m.environment_version = $4)
       ORDER BY m.embedding <=> $1::VECTOR
-      LIMIT $5`;
-}
-
-/**
- * Candidate generation happens in CockroachDB using the agent-scoped cosine
- * C-SPANN vector index plus deterministic relational filters. Higher-level
- * outcome/context weighting is applied by memory-core so ranking policy remains
- * versionable.
- */
-export async function searchMemoryCandidates(
-  pool: Pool,
-  input: HybridSearchInput,
-): Promise<HybridMemoryRow[]> {
-  const limit = Math.min(Math.max(input.limit ?? 10, 1), 50);
-  const vector = toVectorLiteral(input.queryEmbedding);
-  const agentId = await resolveAgentId(pool, input.agentExternalId);
-  if (!agentId) return [];
-
-  const result = await pool.query<HybridMemoryRow>(
-    candidateSql(),
+      LIMIT $5
+    `,
     [vector, agentId, input.workflowType ?? null, input.environmentVersion ?? null, limit],
   );
 
   return result.rows;
-}
-
-/**
- * Explain the candidate-generation query shape used by the reusable Cockroach
- * memory helper. This is evidence, not a forced index hint: the returned plan
- * records whether the live optimizer selected the scoped cosine vector index.
- */
-export async function explainMemoryCandidatePlan(
-  pool: Pool,
-  input: HybridSearchInput,
-): Promise<VectorPlanEvidence> {
-  const limit = Math.min(Math.max(input.limit ?? 10, 1), 50);
-  const vector = toVectorLiteral(input.queryEmbedding);
-  const agentId = await resolveAgentId(pool, input.agentExternalId);
-  if (!agentId) throw new Error(`Agent ${input.agentExternalId} does not exist`);
-
-  const result = await pool.query<{ info: string }>(
-    candidateSql("EXPLAIN"),
-    [vector, agentId, input.workflowType ?? null, input.environmentVersion ?? null, limit],
-  );
-  const planLines = result.rows.map((row) => String(row.info));
-  const planText = planLines.join("\n");
-  const usesVectorSearch = /\bvector search\b/i.test(planText);
-  const usesExpectedIndex = new RegExp(`memories@${EXPECTED_VECTOR_INDEX}\\b`, "i").test(planText);
-  const fullScan = /\bFULL SCAN\b/i.test(planText);
-
-  return {
-    agentId,
-    indexName: EXPECTED_VECTOR_INDEX,
-    planLines,
-    planText,
-    usesVectorSearch,
-    usesExpectedIndex,
-    fullScan,
-    cspannSelected: usesVectorSearch && usesExpectedIndex && !fullScan,
-  };
 }
 
 export async function getMemoryProvenance(pool: Pool, memoryId: string) {
