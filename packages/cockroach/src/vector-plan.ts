@@ -1,6 +1,6 @@
 import type pg from "pg";
 
-export const ENGRAM_COSINE_VECTOR_INDEX = "memories_embedding_cosine_idx" as const;
+export const ENGRAM_COSINE_VECTOR_INDEX = "memories_agent_embedding_cosine_idx" as const;
 
 function toVectorLiteral(values: number[]): string {
   if (values.length !== 1024) throw new Error(`Expected 1024-dimensional embedding, received ${values.length}`);
@@ -27,7 +27,7 @@ export type VectorPlanEvidence = {
 /**
  * Explain the same candidate-generation shape used by CockroachMemoryRepository.
  * This intentionally does not force an index hint: evidence should show whether
- * CockroachDB's optimizer naturally selects the cosine C-SPANN index.
+ * CockroachDB's optimizer naturally selects the agent-scoped cosine C-SPANN index.
  */
 export async function explainEngramMemorySearch(
   pool: pg.Pool,
