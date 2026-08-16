@@ -12,6 +12,7 @@ import {
 } from "../../memory-core/src/domain.js";
 import type { MemoryPolicyRegistry } from "../../policy/src/registry.js";
 import type { MemoryPolicyBundle } from "../../policy/src/contracts.js";
+import type { MemoryEligibilityAdvisor } from "./eligibility.js";
 import type { EngramRuntimeStore } from "./store.js";
 import {
   evaluateAdmissionSignal,
@@ -35,6 +36,7 @@ export class EngramRuntime {
     private readonly store: EngramRuntimeStore,
     private readonly fallbackPolicies: RuntimePolicyBundle,
     private readonly policyRegistry?: MemoryPolicyRegistry,
+    private readonly eligibilityAdvisor?: MemoryEligibilityAdvisor,
   ) {}
 
   async startExecution(input: unknown): Promise<{ executionId: string }> {
@@ -84,6 +86,13 @@ export class EngramRuntime {
     for (const candidate of raw.candidates) {
       const reasons = evaluateRecallCandidate(candidate.memory, execution, policies);
       if (candidate.finalScore < policies.retrieval.minimumScore) reasons.push("SCORE_BELOW_THRESHOLD");
+      if (this.eligibilityAdvisor) {
+        reasons.push(...await this.eligibilityAdvisor.evaluate({
+          stage: "RECALL",
+          execution,
+          memory: candidate.memory,
+        }));
+      }
 
       if (reasons.length > 0) {
         rejected.push({ memoryId: candidate.memory.id, reasons });
@@ -292,6 +301,13 @@ export class EngramRuntime {
       const memory = await this.store.getMemory(influence.memoryId);
       if (!memory) throw new Error(`Influential memory ${influence.memoryId} does not exist`);
       const reasons = evaluateInfluenceMemory(memory, execution, policies);
+      if (this.eligibilityAdvisor) {
+        reasons.push(...await this.eligibilityAdvisor.evaluate({
+          stage: "INFLUENCE",
+          execution,
+          memory,
+        }));
+      }
       if (
         influence.influenceType === "CHANGED_ACTION" &&
         policies.influence.requireCounterfactualForChangedAction &&
