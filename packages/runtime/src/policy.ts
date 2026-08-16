@@ -26,6 +26,10 @@ export function evaluateRecallCandidate(
   if (memory.validFrom && memory.validFrom > now) {
     reasons.push("MEMORY_NOT_YET_VALID");
   }
+
+  if (retrieval.requireEnvironmentMatch && memory.environmentVersion && !execution.environmentVersion) {
+    reasons.push("EXECUTION_ENVIRONMENT_UNSPECIFIED");
+  }
   if (
     retrieval.requireEnvironmentMatch &&
     execution.environmentVersion &&
@@ -34,6 +38,10 @@ export function evaluateRecallCandidate(
   ) {
     reasons.push("ENVIRONMENT_MISMATCH");
   }
+
+  if (expiry.invalidateOnEnvironmentChange && memory.environmentVersion && !execution.environmentVersion) {
+    reasons.push("EXECUTION_ENVIRONMENT_UNSPECIFIED");
+  }
   if (
     expiry.invalidateOnEnvironmentChange &&
     execution.environmentVersion &&
@@ -41,6 +49,10 @@ export function evaluateRecallCandidate(
     execution.environmentVersion !== memory.environmentVersion
   ) {
     reasons.push("INVALIDATED_ENVIRONMENT_CHANGE");
+  }
+
+  if (expiry.invalidateOnToolMajorVersionChange && memory.toolVersion && !execution.toolVersion) {
+    reasons.push("EXECUTION_TOOL_VERSION_UNSPECIFIED");
   }
   if (
     expiry.invalidateOnToolMajorVersionChange &&
@@ -55,7 +67,7 @@ export function evaluateRecallCandidate(
     if (ageSeconds > expiry.maxAgeSeconds) reasons.push("INVALIDATED_MAX_AGE");
   }
 
-  return reasons;
+  return [...new Set(reasons)];
 }
 
 export function evaluateInfluenceMemory(
