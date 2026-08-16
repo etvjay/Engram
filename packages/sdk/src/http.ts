@@ -14,6 +14,7 @@ import type {
 
 export type HttpTransportOptions = {
   baseUrl: string;
+  apiToken?: string;
   fetch?: typeof globalThis.fetch;
   headers?: Record<string, string>;
 };
@@ -32,12 +33,16 @@ export class EngramHttpError extends Error {
 export function httpTransport(options: HttpTransportOptions): EngramTransport {
   const fetchImpl = options.fetch ?? globalThis.fetch;
   const baseUrl = options.baseUrl.replace(/\/$/, "");
+  const authorization = options.apiToken?.trim()
+    ? { authorization: `Bearer ${options.apiToken.trim()}` }
+    : {};
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await fetchImpl(`${baseUrl}${path}`, {
       ...init,
       headers: {
         "content-type": "application/json",
+        ...authorization,
         ...options.headers,
         ...(init.headers ?? {}),
       },
