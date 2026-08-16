@@ -632,7 +632,13 @@
           "summary": { "type": "string", "minLength": 1 },
           "evidenceState": { "$ref": "#/components/schemas/EvidenceState" },
           "details": { "type": "object", "additionalProperties": true },
-          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "sourceExecutionIds": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "format": "uuid" },
+            "description": "Executions whose evidence supports this memory. Explicit sets must include the execution being completed; every source must exist and belong to the same agent. Duplicate IDs are tolerated and deduplicated by the runtime."
+          }
         }
       },
       "CompleteRequest": {
