@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { MemoryRecall } from "../../packages/core/src/protocol.js";
 import type { ExecutionContext, ExecutionEvent, MemorySearchInput, OperationalMemory, Outcome } from "../../packages/memory-core/src/domain.js";
-import { decideIncidentStrategy, executeIncidentRecovery, type IncidentContext } from "../../packages/scenarios/incident/src/index.js";
+import { decideRecoveryStrategy, executeRecovery, type IncidentContext } from "../../packages/scenarios/incident-response/src/index.js";
 import { DEFAULT_RUNTIME_POLICIES } from "../../packages/runtime/src/defaults.js";
 import { EngramRuntime } from "../../packages/runtime/src/runtime.js";
 import type { EngramRuntimeStore } from "../../packages/runtime/src/store.js";
@@ -96,10 +96,10 @@ class IncidentStore implements EngramRuntimeStore {
 }
 
 const incident: IncidentContext = {
-  workflowType: "incident_recovery",
+  workflowType: "incident_response",
   service: "checkout-worker",
-  symptom: "SATURATED_WORKERS",
-  retrySensitive: true,
+  failureMode: "SATURATED_DEPENDENCY",
+  fleetSize: "LARGE",
   environmentVersion: "prod-v9",
 };
 
@@ -114,25 +114,29 @@ const executionContext = {
 } as const;
 
 describe("incident recovery execution memory", () => {
-  it("remembers a mitigation side effect and changes later recovery strategy", async () => {
+  it("remembers degraded recovery quality and changes the later mitigation", async () => {
     const store = new IncidentStore();
     const runtime = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
 
-    // Source incident: fleet restart restores workers but creates a secondary retry storm.
     const source = await runtime.startExecution(executionContext);
-    const emptyRecall = await runtime.recall({ executionId: source.executionId, query: "worker saturation recovery retry storm" });
+    const emptyRecall = await runtime.recall({ executionId: source.executionId, query: "dependency saturation restart thundering herd" });
     expect(emptyRecall.candidates).toHaveLength(0);
-    const sourceChoice = decideIncidentStrategy({ context: incident, memories: [] });
-    expect(sourceChoice.strategy).toBe("FLEET_RESTART");
+    const sourceChoice = decideRecoveryStrategy({ context: incident, memories: [] });
+    expect(sourceChoice.strategy).toBe("RESTART_ALL");
     await runtime.recordDecision({
       executionId: source.executionId,
       decisionType: "INCIDENT_MITIGATION",
       selectedAction: { strategy: sourceChoice.strategy },
-      alternatives: [{ strategy: "DRAIN_AND_CANARY_RESTART" }],
-      reasoningSummary: "No prior execution memory constrains the fleet-restart baseline.",
+      alternatives: [{ strategy: "ISOLATE_DRAIN_STAGED_RESTART" }],
+      reasoningSummary: "No prior execution memory constrains the restart-all baseline.",
     });
-    const sourceResult = executeIncidentRecovery(sourceChoice.strategy, incident);
-    expect(sourceResult).toMatchObject({ status: "PARTIAL", primaryRecovered: true, secondaryFailure: "RETRY_STORM" });
+    const sourceResult = executeRecovery(sourceChoice.strategy, incident);
+    expect(sourceResult).toMatchObject({
+      status: "PARTIAL",
+      secondaryFailure: "THUNDERING_HERD",
+      customerImpact: "PROLONGED",
+      timeToRecoveryMinutes: 24,
+    });
     await runtime.observe({
       executionId: source.executionId,
       type: "PRIMARY_SERVICE_RECOVERED",
@@ -141,37 +145,38 @@ describe("incident recovery execution memory", () => {
     });
     await runtime.observe({
       executionId: source.executionId,
-      type: "SECONDARY_RETRY_STORM",
-      payload: { consequence: "queue saturation", strategy: sourceChoice.strategy },
+      type: "SECONDARY_THUNDERING_HERD",
+      payload: { strategy: sourceChoice.strategy, customerImpact: sourceResult.customerImpact },
       evidenceState: "OBSERVED",
     });
     const sourceComplete = await runtime.complete({
       executionId: source.executionId,
       status: "PARTIAL",
-      summary: "Fleet restart restored workers but caused a retry storm and secondary queue saturation.",
+      summary: "Restart-all restored the fleet but caused a thundering herd and prolonged customer impact.",
       evidenceState: "OBSERVED",
       admissionSignals: [{
         kind: "SUCCESSFUL_RECOVERY",
-        summary: "FLEET_RESTART restored SATURATED_WORKERS but caused RETRY_STORM; for comparable retry-sensitive incidents prefer DRAIN_AND_CANARY_RESTART.",
+        summary: "RESTART_ALL under SATURATED_DEPENDENCY restored service but caused THUNDERING_HERD; for comparable large fleets prefer ISOLATE_DRAIN_STAGED_RESTART.",
         evidenceState: "OBSERVED",
         confidence: 0.95,
         details: {
           workflowType: incident.workflowType,
-          symptom: incident.symptom,
-          failedStrategy: "FLEET_RESTART",
-          secondaryFailure: "RETRY_STORM",
-          recommendedStrategy: "DRAIN_AND_CANARY_RESTART",
-          recoveryQuality: "DEGRADED",
+          failureMode: incident.failureMode,
+          recoveryStrategy: "RESTART_ALL",
+          failedStrategy: "RESTART_ALL",
+          secondaryFailure: "THUNDERING_HERD",
+          recommendedStrategy: "ISOLATE_DRAIN_STAGED_RESTART",
+          customerImpact: sourceResult.customerImpact,
+          timeToRecoveryMinutes: sourceResult.timeToRecoveryMinutes,
         },
       }],
     });
     const incidentMemory = sourceComplete.admittedMemories[0]!;
 
-    // Control: same incident without recall repeats the degraded recovery.
     const control = await runtime.startExecution(executionContext);
-    const controlChoice = decideIncidentStrategy({ context: incident, memories: [] });
-    const controlResult = executeIncidentRecovery(controlChoice.strategy, incident);
-    expect(controlResult.recoveryQuality).toBe("DEGRADED");
+    const controlChoice = decideRecoveryStrategy({ context: incident, memories: [] });
+    const controlResult = executeRecovery(controlChoice.strategy, incident);
+    expect(controlResult).toMatchObject({ status: "PARTIAL", secondaryFailure: "THUNDERING_HERD" });
     await runtime.recordDecision({
       executionId: control.executionId,
       decisionType: "INCIDENT_MITIGATION",
@@ -181,52 +186,59 @@ describe("incident recovery execution memory", () => {
     await runtime.complete({
       executionId: control.executionId,
       status: "PARTIAL",
-      summary: "Control repeats the fleet restart and retry storm.",
+      summary: "Control repeats restart-all and the secondary thundering herd.",
       evidenceState: "OBSERVED",
     });
 
-    // Treatment: recall includes the side effect, not merely the primary recovery.
     const treatment = await runtime.startExecution(executionContext);
-    const recall = await runtime.recall({ executionId: treatment.executionId, query: "worker saturation recovery retry storm" });
+    const recall = await runtime.recall({ executionId: treatment.executionId, query: "dependency saturation restart thundering herd" });
     expect(recall.candidates.map((candidate) => candidate.memory.id)).toContain(incidentMemory.id);
-    const choice = decideIncidentStrategy({
+    const choice = decideRecoveryStrategy({
       context: incident,
       memories: recall.candidates.map((candidate) => ({ memory: candidate.memory, finalScore: candidate.score })),
     });
-    expect(choice.strategy).toBe("DRAIN_AND_CANARY_RESTART");
+    expect(choice.strategy).toBe("ISOLATE_DRAIN_STAGED_RESTART");
     await runtime.recordDecision({
       executionId: treatment.executionId,
       decisionType: "INCIDENT_MITIGATION",
       selectedAction: { strategy: choice.strategy },
       alternatives: [{ strategy: controlChoice.strategy }],
-      reasoningSummary: "Prior recovery restored the primary service but caused a secondary retry storm, so the mitigation is staged.",
+      reasoningSummary: "Prior recovery restored service but caused a thundering herd, so mitigation is isolated and staged.",
       influences: [{
         memoryId: incidentMemory.id,
         retrievalId: recall.recall.id,
         influenceType: "CHANGED_ACTION",
-        summary: "The remembered secondary failure changed the recovery strategy.",
+        summary: "The remembered secondary failure and prolonged impact changed the recovery strategy.",
         relevance: 0.96,
         counterfactual: {
           action: { strategy: controlChoice.strategy },
           source: "CONTROL_RUN",
           evidenceState: "OBSERVED",
-          explanation: "The same-context control omitted recall, repeated FLEET_RESTART, and reproduced degraded recovery.",
+          explanation: "The same-context control omitted recall, repeated RESTART_ALL, and reproduced the thundering herd.",
           comparisonExecutionId: control.executionId,
         },
       }],
     });
-    const treatmentResult = executeIncidentRecovery(choice.strategy, incident);
-    expect(treatmentResult).toMatchObject({ status: "SUCCESS", recoveryQuality: "CLEAN", primaryRecovered: true });
+    const treatmentResult = executeRecovery(choice.strategy, incident);
+    expect(treatmentResult).toMatchObject({
+      status: "SUCCESS",
+      customerImpact: "CONTAINED",
+      timeToRecoveryMinutes: 9,
+    });
     await runtime.observe({
       executionId: treatment.executionId,
       type: "INCIDENT_RECOVERED_CLEANLY",
-      payload: { strategy: choice.strategy, secondaryFailure: null },
+      payload: { strategy: choice.strategy, customerImpact: treatmentResult.customerImpact },
       evidenceState: "OBSERVED",
     });
     await runtime.complete({
       executionId: treatment.executionId,
       status: "SUCCESS",
-      summary: "Staged drain and canary restart restored service without a retry storm.",
+      summary: "Isolation, drain, and staged restart restored service without a thundering herd.",
+      result: {
+        customerImpact: treatmentResult.customerImpact,
+        timeToRecoveryMinutes: treatmentResult.timeToRecoveryMinutes,
+      },
       evidenceState: "OBSERVED",
     });
 
