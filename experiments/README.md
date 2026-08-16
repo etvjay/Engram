@@ -20,6 +20,7 @@ Experiment IDs are unique repository-wide. Before creating a new experiment dire
 | EXP-014 | `EXP-014-context-completeness-authority` | Can version-bound memory fail closed when a future execution omits the environment/tool metadata required to establish compatibility? |
 | EXP-015 | `EXP-015-provenance-authenticity` | Can a memory that claims source execution provenance be prevented from exposure or influence when that lineage is missing, foreign-agent, contradictory or no longer resolvable? |
 | EXP-016 | `EXP-016-runtime-agent-isolation-authority` | Can the runtime reject foreign-agent memory even when a storage adapter incorrectly returns or later mutates it? |
+| EXP-017 | `EXP-017-evidence-state-escalation` | Can derived Operational Memory be prevented from claiming stronger evidence than the execution outcome that admitted it? |
 
 ## Evidence discipline
 
@@ -31,4 +32,4 @@ Experiment execution may be SIMULATED while memory/runtime/storage evidence is c
 
 ## Next ID
 
-The next unclaimed experiment ID is `EXP-017`.
+The next unclaimed experiment ID is `EXP-018`.
