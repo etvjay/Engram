@@ -230,15 +230,17 @@ claims:
     promotion_condition: Successful Engram AWS Deploy Verification workflow run with uploaded deployment artifact.
 
   - id: ENG-021
-    claim: Engram preserves exact recall-to-decision provenance when multiple relevant memories compete and rejects a valid memory paired with the wrong retrieval.
+    claim: Engram preserves exact recall-to-decision provenance when multiple recalls compete and rejects a valid memory paired with the wrong retrieval.
     state: TESTED
     evidence:
       - packages/runtime/src/runtime.ts
       - tests/runtime/competing-memory-provenance.test.ts
-      - experiments/EXP-004-competing-memories/findings.md
-      - experiments/EXP-004-competing-memories/decision.md
+      - experiments/EXP-008-competing-memory-provenance/hypothesis.md
+      - experiments/EXP-008-competing-memory-provenance/setup.md
+      - experiments/EXP-008-competing-memory-provenance/findings.md
+      - experiments/EXP-008-competing-memory-provenance/decision.md
       - GitHub Actions Engram CI run 31935001862
-    boundary: A memory ID is not sufficient influence provenance; the referenced retrieval must actually have exposed that memory.
+    boundary: A memory ID is not sufficient influence provenance; the referenced retrieval must actually have exposed that memory. Credentialed CockroachDB trace reconstruction is separately live-verification-gated.
 
   - id: ENG-022
     claim: Engram can keep explicitly contradictory memories recall-visible while an opt-in eligibility advisor blocks unresolved contradiction from becoming action authority.
@@ -247,7 +249,7 @@ claims:
       - packages/runtime/src/eligibility.ts
       - packages/evaluation/src/eligibility-advisor.ts
       - tests/runtime/competing-memories.test.ts
-      - experiments/EXP-004-competing-memories
+      - experiments/EXP-004-competing-eligible-memories
       - GitHub Actions Engram CI run 31935001862
     boundary: This is optional workload/evaluation-aware composition, not a universal Engram protocol default. Contradiction requires explicit relationship evidence and is not inferred from vector similarity.
 
@@ -261,4 +263,31 @@ claims:
       - experiments/EXP-005-deployment-recovery-memory/findings.md
       - experiments/EXP-005-deployment-recovery-memory/decision.md
       - GitHub Actions Engram CI run 31935125047
-    boundary: The deployment executor is deterministic experiment logic, not a live production deployment. Engram records recall, CHANGED_ACTION influence, the real control execution as counterfactual evidence, and the later observed outcome; the application owns strategy selection.
+    boundary: The deployment workload is deterministic and SIMULATED. Engram records source execution memory, treatment recall, CHANGED_ACTION influence, a real same-context control execution as counterfactual evidence, and the later observed outcome; the application owns deployment strategy selection.
+
+  - id: ENG-024
+    claim: Engram can preserve the secondary consequences of a recovery action and use that execution memory to change a later comparable incident-recovery sequence.
+    state: TESTED
+    evidence:
+      - packages/scenarios/incident-response/src/index.ts
+      - tests/e2e/incident-recovery-memory.test.ts
+      - experiments/EXP-006-incident-recovery-memory/hypothesis.md
+      - experiments/EXP-006-incident-recovery-memory/setup.md
+      - experiments/EXP-006-incident-recovery-memory/findings.md
+      - experiments/EXP-006-incident-recovery-memory/decision.md
+      - GitHub Actions Engram CI run 31935299891
+    boundary: The incident workload is deterministic and SIMULATED. The runtime proof includes source memory admission, a real same-context control, exact treatment retrieval/influence provenance, and observed treatment outcome; live infrastructure orchestration is not claimed.
+
+  - id: ENG-025
+    claim: Engram can reuse a prior reverted coding regression to change a later comparable autonomous-coding methodology from patch-first to regression-test-first.
+    state: TESTED
+    evidence:
+      - packages/scenarios/coding/src/index.ts
+      - tests/scenarios/coding-memory.test.ts
+      - tests/e2e/coding-regression-memory.test.ts
+      - experiments/EXP-007-coding-regression/hypothesis.md
+      - experiments/EXP-007-coding-regression/setup.md
+      - experiments/EXP-007-coding-regression/findings.md
+      - experiments/EXP-007-coding-regression/decision.md
+      - GitHub Actions Engram CI run 31935526015
+    boundary: The coding workload is deterministic and SIMULATED. Engram preserves the full source/control/treatment causal chain, but no live repository-writing coding-agent integration is claimed.
