@@ -1,0 +1,68 @@
+schema_version: engram-claims-v1
+updated_at: 2026-08-16
+
+claims:
+  - id: ENG-001
+    claim: A prior execution can materially change a later Engram decision under comparable context.
+    state: VERIFIED
+    evidence:
+      - tests/e2e/memory-caused-behavior.test.ts
+      - tests/e2e/demo-orchestration.test.ts
+      - GitHub Actions Engram CI
+    boundary: Deterministic simulated external execution; repository abstraction for orchestration test.
+
+  - id: ENG-002
+    claim: Engram persists executions, memories, retrievals, decisions, outcomes, and memory-to-decision provenance in CockroachDB.
+    state: IMPLEMENTED
+    evidence:
+      - db/migrations/001_initial.sql
+      - packages/cockroach/src/repository.ts
+      - tests/integration/cockroach-memory-loop.test.ts
+    promotion_condition: Successful Engram Live Verification run against CockroachDB Cloud with evidence/live/latest.json artifact.
+
+  - id: ENG-003
+    claim: Engram performs distributed vector retrieval using CockroachDB Cloud VECTOR/C-SPANN.
+    state: IMPLEMENTED
+    evidence:
+      - db/migrations/001_initial.sql
+      - packages/cockroach/src/memory.ts
+    promotion_condition: Successful live verification artifact showing Run B retrieved the Run A memory from CockroachDB Cloud.
+
+  - id: ENG-004
+    claim: Amazon Bedrock Titan Embeddings V2 supplies Engram memory/query embeddings.
+    state: IMPLEMENTED
+    evidence:
+      - packages/bedrock/src/embeddings.ts
+    promotion_condition: Successful live verification artifact produced with Bedrock credentials and no deterministic test embedding provider.
+
+  - id: ENG-005
+    claim: CockroachDB Cloud Managed MCP can inspect Engram memory provenance through a read-only agent-facing plane.
+    state: IMPLEMENTED
+    evidence:
+      - packages/cockroach-mcp/src/client.ts
+      - services/api/src/handler.ts
+    promotion_condition: Successful live verification artifact containing MCP status and select_query provenance output.
+
+  - id: ENG-006
+    claim: Engram can run as an AWS Lambda HTTP API using the SAM deployment definition.
+    state: IMPLEMENTED
+    evidence:
+      - template.yaml
+      - services/api/src/handler.ts
+    promotion_condition: Successful deployed health check and demo invocation against the public AWS endpoint.
+
+  - id: ENG-007
+    claim: Engram exposes an evidence-first four-screen interface for Execute, Live Trace, Memory Explorer, and Compare Runs.
+    state: TESTED
+    evidence:
+      - apps/web
+      - GitHub Actions Engram CI web build
+    boundary: Build verified; public deployment not yet verified.
+
+  - id: ENG-008
+    claim: The external multi-venue workload in the MVP is a live market execution.
+    state: FALSE
+    evidence:
+      - packages/execution-simulator/src/index.ts
+      - services/demo/src/run-demo.ts
+    boundary: The workload is intentionally SIMULATED. Persistence, retrieval, and provenance may be promoted independently through live infrastructure verification.
