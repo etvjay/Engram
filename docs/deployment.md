@@ -9,11 +9,11 @@ Status labels in this document are deliberate. Do not mark a step VERIFIED until
 - AWS account with Lambda/API Gateway deployment rights.
 - Amazon Bedrock access to `amazon.titan-embed-text-v2:0` (or the configured embedding model) in the deployment region.
 - CockroachDB Cloud Managed MCP credentials for the canonical hackathon live proof.
-- A strong random `ENGRAM_INSPECTION_TOKEN` for protected read/inspection routes.
+- A strong random `ENGRAM_API_TOKEN` for all non-demo `/v1` API routes.
 
 ## CockroachDB
 
-Do not apply one migration file manually. Engram now has an ordered migration chain for runtime policy, evaluation, atomic event sequencing, and the canonical agent-scoped cosine vector index.
+Do not apply one migration file manually. Engram has an ordered migration chain for runtime policy, evaluation, atomic event sequencing, and the canonical agent-scoped cosine vector index.
 
 Apply the full chain with:
 
@@ -27,7 +27,7 @@ Then run the credential-gated integration suite:
 DATABASE_URL='postgresql://...' npm run test:integration
 ```
 
-The database suite covers persisted memory/influence provenance plus concurrency/idempotency/isolation properties. A normal credential-free CI run only proves that these tests compile and are correctly gated; it does **not** constitute live CockroachDB verification.
+The database suite covers persisted memory/influence provenance plus concurrency, idempotency, and agent-isolation properties. A normal credential-free CI run only proves that these tests compile and are correctly gated; it does **not** constitute live CockroachDB verification.
 
 ## Canonical live verification
 
@@ -69,9 +69,40 @@ Transactional Engram writes continue through the PostgreSQL-compatible applicati
 
 Never store the MCP API key inside an execution event, memory, decision, trace, or frontend bundle.
 
+## API authentication
+
+`GET /health` and the deterministic `POST /v1/demo/run` proof endpoint are intentionally public.
+
+Every other `/v1/*` request requires:
+
+```bash
+Authorization: Bearer $ENGRAM_API_TOKEN
+```
+
+This includes runtime lifecycle writes, runtime traces, legacy memory search, control-plane reads, and MCP inspection routes. The API fails closed with `API_AUTH_NOT_CONFIGURED` when no server token exists, and returns `UNAUTHORIZED` for a missing/incorrect bearer token.
+
+The TypeScript HTTP transport supports:
+
+```ts
+httpTransport({
+  baseUrl: API_URL,
+  apiToken: process.env.ENGRAM_API_TOKEN,
+});
+```
+
+The Python SDK supports:
+
+```python
+Engram(API_URL, api_token=os.environ["ENGRAM_API_TOKEN"])
+```
+
+This shared token is an initial deployment boundary, not a complete tenant/user identity system. A production multi-user control plane should move to authenticated sessions/identity-aware authorization rather than shipping this token in a public browser bundle.
+
 ## AWS SAM
 
-Build:
+Credential-free packaging is checked by `.github/workflows/sam-build.yml` with `sam validate` and `sam build`.
+
+Build locally:
 
 ```bash
 sam build
@@ -84,44 +115,15 @@ sam deploy --guided \
   --parameter-overrides \
     DatabaseUrl='postgresql://...' \
     CorsOrigin='https://YOUR_FRONTEND' \
-    InspectionToken='A_LONG_RANDOM_SECRET' \
+    ApiToken='A_LONG_RANDOM_SECRET' \
     CockroachMcpClusterId='YOUR_CLUSTER_ID' \
     CockroachMcpApiKey='YOUR_SERVICE_ACCOUNT_KEY' \
     CockroachMcpDatabase='defaultdb'
 ```
 
-`InspectionToken` is passed to Lambda as `ENGRAM_INSPECTION_TOKEN`. It is a demo/initial deployment authorization boundary, not a complete multi-tenant identity system.
+`ApiToken` is passed to Lambda as `ENGRAM_API_TOKEN`.
 
-### Public demo/runtime surfaces
-
-- `GET /health`
-- `POST /v1/demo/run`
-- runtime mutation operations under `POST /v1/executions/...`
-
-### Protected inspection surfaces
-
-Send:
-
-```bash
-Authorization: Bearer $ENGRAM_INSPECTION_TOKEN
-```
-
-for:
-
-- `GET /v1/mcp/status`
-- `GET /v1/mcp/memories/{id}/provenance`
-- `GET /v1/executions/{id}/trace`
-- `POST /v1/memory/search` (legacy read path)
-- all `GET /v1/control-plane/*` routes, including memory evaluation dossiers
-
-Protected routes fail closed with `INSPECTION_AUTH_NOT_CONFIGURED` when no deployment token exists, and return `UNAUTHORIZED` for a missing/incorrect bearer token.
-
-Example:
-
-```bash
-curl -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
-  "$API_URL/v1/control-plane/overview"
-```
+The repository also contains the manual `.github/workflows/aws-deploy-verification.yml` workflow. It builds and deploys the SAM stack, resolves the deployed API URL, proves an unauthenticated `/v1` call is rejected, then exercises the authenticated trace, control plane, memory evaluation, MCP status, and MCP provenance endpoints. It writes an `evidence/aws/` artifact.
 
 ## Deployment verification sequence
 
@@ -132,14 +134,14 @@ curl "$API_URL/health"
 
 curl -X POST "$API_URL/v1/demo/run"
 
-curl -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+curl -H "Authorization: Bearer $ENGRAM_API_TOKEN" \
   "$API_URL/v1/control-plane/overview"
 
-curl -H "Authorization: Bearer $ENGRAM_INSPECTION_TOKEN" \
+curl -H "Authorization: Bearer $ENGRAM_API_TOKEN" \
   "$API_URL/v1/mcp/status"
 ```
 
-A deployed API claim is not VERIFIED until these public/protected surfaces have been exercised successfully against the deployed Lambda.
+A deployed API claim is not VERIFIED until these public/authenticated surfaces have been exercised successfully against the deployed Lambda.
 
 ## Web UI
 
@@ -149,7 +151,7 @@ Build with the deployed API URL:
 VITE_API_BASE_URL="$API_URL" npm run build:web
 ```
 
-The output is written to `dist-web/`. Do not embed `ENGRAM_INSPECTION_TOKEN` into a public static frontend bundle. A production control plane requires an authenticated backend/session architecture rather than a browser-shipped shared secret.
+The output is written to `dist-web/`. Do **not** embed `ENGRAM_API_TOKEN` into a public static frontend bundle. A protected operator/control-plane frontend needs a server-side authenticated session architecture or another identity-aware proxy.
 
 ## Evidence boundary
 
@@ -162,6 +164,7 @@ The canonical demo/submission must state independently:
 - Bedrock embeddings: **VERIFIED** only after a live Titan invocation
 - memory-to-decision provenance: **VERIFIED** only after live persisted trace proof
 - Managed MCP: **VERIFIED** only after live connection and exact provenance query
-- AWS deployment: **VERIFIED** only after the deployed public/protected endpoints are exercised
+- SAM packaging: **TESTED** only after SAM Build CI succeeds
+- AWS deployment: **VERIFIED** only after the deployed public/authenticated endpoints are exercised
 
 Do not upgrade any label based only on configuration, schema presence, or normal credential-free CI.
