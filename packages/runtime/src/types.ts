@@ -107,6 +107,15 @@ export type AdmissionSignal = {
   evidenceState: EvidenceState;
   details?: Record<string, unknown>;
   confidence?: number;
+  /**
+   * Executions whose evidence supports this memory. Omit for the historical
+   * single-source behavior, which uses the execution being completed.
+   *
+   * Multi-source admission is useful for REPEATED_PATTERN and other memories
+   * whose claim is not honestly attributable to one run. The admitting
+   * execution must be included and every source must belong to the same agent.
+   */
+  sourceExecutionIds?: string[];
 };
 
 export type RuntimeCompleteInput = {
