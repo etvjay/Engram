@@ -40,6 +40,38 @@ const trace = await run.trace();
 
 The application decides the action. Engram does not provide `run.decide()`.
 
+## Multi-source memory admission
+
+An admission signal may optionally declare `sourceExecutionIds` when the memory claim is supported by multiple executions—for example a `REPEATED_PATTERN` observed across several comparable runs.
+
+```ts
+await run.complete({
+  status: "SUCCESS",
+  summary: "The third comparable handoff confirmed the recurring clarification pattern.",
+  evidenceState: "OBSERVED",
+  admissionSignals: [{
+    kind: "REPEATED_PATTERN",
+    summary: "Minimal handoffs repeatedly cause executor clarification.",
+    evidenceState: "OBSERVED",
+    sourceExecutionIds: [runAId, runBId, run.executionId],
+    details: {
+      pattern: "MISSING_CONSTRAINTS_CAUSES_CLARIFICATION",
+    },
+  }],
+});
+```
+
+Rules enforced by the runtime:
+
+- omitted `sourceExecutionIds` preserves the historical single-source behavior;
+- duplicate IDs are deduplicated;
+- the execution admitting the memory must be included in an explicit source set;
+- every source execution must exist;
+- every source execution must belong to the same Engram agent as the admitting execution;
+- invalid provenance rejects that admission signal rather than fabricating a multi-source memory.
+
+Use this field only when the source executions actually support the memory claim. Do not manufacture a multi-source set in UI code merely to increase apparent confidence.
+
 ## Authentication
 
 The current protected `/v1` API uses bearer authorization. **Do not embed the privileged MVP `ENGRAM_API_TOKEN` in a public static frontend.** Use a server-side/BFF/session boundary unless the token is explicitly designed for the end user.
@@ -52,13 +84,17 @@ Public endpoints currently include `/health` and `/v1/demo/run`.
 - influence must reference memory actually exposed by the referenced retrieval;
 - `CHANGED_ACTION` requires counterfactual evidence under the configured policy;
 - do not invent counterfactuals in UI code;
-- use API/server state as canonical, not local component state.
+- use API/server state as canonical, not local component state;
+- multi-source provenance identifies evidence sources; it does not make the resulting memory automatically true or globally applicable.
 
 ## Implementation/tests
 
 - `packages/sdk/src/index.ts`
 - `packages/sdk/src/http.ts`
+- `packages/runtime/src/types.ts`
+- `packages/runtime/src/runtime.ts`
 - `tests/sdk/sdk.test.ts`
 - `tests/sdk/http-transport.test.ts`
+- `tests/runtime/multi-source-admission.test.ts`
 
-**Evidence status:** TESTED. Published package registry consumption and public authenticated deployment remain UNVERIFIED.
+**Evidence status:** IMPLEMENTED for multi-source admission; existing SDK transport behavior is TESTED. Multi-source acceptance remains subject to the exact-head aggregate CI that includes the new runtime tests. Published package registry consumption and public authenticated deployment remain UNVERIFIED.
