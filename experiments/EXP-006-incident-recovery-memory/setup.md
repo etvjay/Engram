@@ -2,37 +2,39 @@
 
 ## Workload
 
-A retry-sensitive `checkout-worker` incident with saturated workers in `prod-v9`.
+A large-fleet `checkout-worker` incident under `SATURATED_DEPENDENCY` in `prod-v9`.
 
-Baseline mitigation: `FLEET_RESTART`.
+Baseline mitigation: `RESTART_ALL`.
 
-Alternative mitigation: `DRAIN_AND_CANARY_RESTART`.
+Alternative mitigation: `ISOLATE_DRAIN_STAGED_RESTART`.
 
 ## Deterministic scenario behavior
 
-`FLEET_RESTART` restores the saturated workers but synchronizes retries and causes `RETRY_STORM`, producing a `PARTIAL` outcome with degraded recovery quality.
+`RESTART_ALL` restores the primary fleet but produces a secondary `THUNDERING_HERD`, taking 24 minutes and prolonging customer impact. The final outcome is `PARTIAL`.
 
-`DRAIN_AND_CANARY_RESTART` restores the service without the secondary retry storm, producing `SUCCESS` with clean recovery quality.
+`ISOLATE_DRAIN_STAGED_RESTART` restores the service without the secondary failure, taking 9 minutes with contained customer impact. The final outcome is `SUCCESS`.
+
+The point is not merely whether the primary service recovered. EXP-006 preserves recovery quality and downstream consequence as part of reusable execution experience.
 
 ## Conditions
 
 ### Source
 
-No prior relevant memory. Fleet restart is selected. Primary recovery and the secondary retry storm are both observed. Engram admits a recovery memory containing the side effect and safer comparable strategy.
+No prior relevant memory. Restart-all is selected. Primary recovery and the secondary thundering herd are both observed. Engram admits a recovery memory containing the side effect, time-to-recovery/customer-impact evidence, and the safer comparable strategy.
 
 ### Control
 
-Same incident/context with recall excluded. Fleet restart is selected again and degraded recovery repeats.
+Same incident/context with recall excluded. Restart-all is selected again and the partial/degraded recovery repeats.
 
 ### Treatment
 
-Same incident/context with recall enabled. The source memory is exposed. The application changes to drain-and-canary restart and records `CHANGED_ACTION` with the concrete control execution as counterfactual evidence.
+Same incident/context with recall enabled. The source memory is exposed. The application changes to isolate/drain/staged restart and records `CHANGED_ACTION` with the concrete control execution as counterfactual evidence.
 
 ## Automated evidence
 
-- `packages/scenarios/incident/src/index.ts`
+- `packages/scenarios/incident-response/src/index.ts`
 - `tests/e2e/incident-recovery-memory.test.ts`
 
 ## Acceptance discipline
 
-Do not write findings or decision until an aggregate Engram CI run containing this test succeeds.
+Do not write findings or decision until an aggregate Engram CI run containing this canonicalized test succeeds.
