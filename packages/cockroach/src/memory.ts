@@ -18,7 +18,7 @@ export type HybridMemoryRow = {
 
 export type VectorPlanEvidence = {
   agentId: string;
-  indexName: "memories_agent_embedding_idx";
+  indexName: "memories_agent_embedding_cosine_idx";
   planLines: string[];
   planText: string;
   usesVectorSearch: boolean;
@@ -27,7 +27,7 @@ export type VectorPlanEvidence = {
   cspannSelected: boolean;
 };
 
-const EXPECTED_VECTOR_INDEX = "memories_agent_embedding_idx" as const;
+const EXPECTED_VECTOR_INDEX = "memories_agent_embedding_cosine_idx" as const;
 
 function toVectorLiteral(values: number[]): string {
   if (values.length === 0) throw new Error("queryEmbedding must not be empty");
@@ -65,8 +65,8 @@ function candidateSql(prefix = ""): string {
 }
 
 /**
- * Candidate generation happens in CockroachDB using the agent-scoped C-SPANN
- * vector index plus deterministic relational filters. Higher-level
+ * Candidate generation happens in CockroachDB using the agent-scoped cosine
+ * C-SPANN vector index plus deterministic relational filters. Higher-level
  * outcome/context weighting is applied by memory-core so ranking policy remains
  * versionable.
  */
@@ -88,10 +88,9 @@ export async function searchMemoryCandidates(
 }
 
 /**
- * Explain the exact candidate-generation query shape used by Engram. This is
- * evidence, not a forced index hint: the returned plan records whether the live
- * CockroachDB optimizer actually selected the scoped vector index for the
- * current dataset.
+ * Explain the candidate-generation query shape used by the reusable Cockroach
+ * memory helper. This is evidence, not a forced index hint: the returned plan
+ * records whether the live optimizer selected the scoped cosine vector index.
  */
 export async function explainMemoryCandidatePlan(
   pool: Pool,
