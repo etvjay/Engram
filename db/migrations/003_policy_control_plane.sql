@@ -28,3 +28,9 @@ CREATE INDEX IF NOT EXISTS memory_policy_assignments_resolution_idx
 
 CREATE INDEX IF NOT EXISTS memory_policy_bundles_status_idx
   ON memory_policy_bundles (status, created_at DESC);
+
+ALTER TABLE executions
+  ADD COLUMN IF NOT EXISTS memory_policy_bundle_version STRING;
+
+CREATE INDEX IF NOT EXISTS executions_memory_policy_bundle_idx
+  ON executions (memory_policy_bundle_version, started_at DESC);
