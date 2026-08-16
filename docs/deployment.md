@@ -100,11 +100,13 @@ This shared token is an initial deployment boundary, not a complete tenant/user 
 
 ## AWS SAM
 
-Credential-free packaging is checked by `.github/workflows/sam-build.yml` with `sam validate` and `sam build`.
+Credential-free packaging is checked by `.github/workflows/sam-build.yml` using the project-pinned `esbuild` binary and `sam build`. The workflow deliberately does not use `sam validate` as its credential-free proof boundary because validation can depend on AWS configuration.
 
 Build locally:
 
 ```bash
+npm install
+export PATH="$PWD/node_modules/.bin:$PATH"
 sam build
 ```
 
