@@ -137,3 +137,15 @@ When an execution performs multiple recalls, an influence must reference the exa
 **Status:** ACCEPTED
 
 Workload-specific action policies such as venue selection or software deployment strategy belong in scenario/application packages. They may consume recalled Operational Memory, but they do not become Engram runtime policy. This preserves the constitutional boundary that the application decides while Engram records and validates memory influence.
+
+## D-023 — Frontend-consumable modules require explicit discovery and usage contracts
+
+**Status:** ACCEPTED
+
+Any module, endpoint, schema, SDK surface, read model, helper, or data contract intentionally consumable or reusable by a frontend must ship with an adjacent `frontend-usage/README.md` (or an adjacent `<artifact>-usage/README.md` for root-level artifacts) and an entry in `docs/frontend-modules/registry.json`.
+
+The usage contract must state the consumption mode, canonical import/route, inputs/outputs, authentication and environment assumptions, a concrete example, semantic invariants, evidence status, implementation paths, and relevant tests.
+
+Frontend discoverability is part of Definition of Done. A frontend team must not need to inspect implementation internals to discover whether a supported surface exists. Server-only modules are explicitly cataloged so absence from the frontend registry is not confused with absence from the system.
+
+Repository conformance tests enforce the registry and guide requirements. `AGENTS.md` and `CONTRIBUTING.md` apply the same rule to automated agents and human contributors.
