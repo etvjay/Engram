@@ -105,30 +105,30 @@ Resources:
         SearchMemory:
           Type: HttpApi
           Properties: { ApiId: !Ref EngramApi, Path: /v1/memory/search, Method: POST }
-        ControlOverview:
+        ControlPlaneOverview:
           Type: HttpApi
-          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/overview, Method: GET }
-        ControlAgents:
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control-plane/overview, Method: GET }
+        ControlPlaneAgents:
           Type: HttpApi
-          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/agents, Method: GET }
-        ControlExecutions:
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control-plane/agents, Method: GET }
+        ControlPlaneExecutions:
           Type: HttpApi
-          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/executions, Method: GET }
-        ControlMemories:
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control-plane/executions, Method: GET }
+        ControlPlaneMemories:
           Type: HttpApi
-          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/memories, Method: GET }
-        ControlInfluences:
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control-plane/memories, Method: GET }
+        ControlPlaneInfluences:
           Type: HttpApi
-          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/influences, Method: GET }
-        ControlPolicies:
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control-plane/influences, Method: GET }
+        ControlPlanePolicies:
           Type: HttpApi
-          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/policies, Method: GET }
-        ControlPolicyAssignments:
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control-plane/policies, Method: GET }
+        ControlPlanePolicyAssignments:
           Type: HttpApi
-          Properties: { ApiId: !Ref EngramApi, Path: /v1/control/policy-assignments, Method: GET }
-        MemoryEvaluation:
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control-plane/policy-assignments, Method: GET }
+        ControlPlaneMemoryEvaluation:
           Type: HttpApi
-          Properties: { ApiId: !Ref EngramApi, Path: /v1/memories/{id}/evaluation, Method: GET }
+          Properties: { ApiId: !Ref EngramApi, Path: /v1/control-plane/memories/{id}/evaluation, Method: GET }
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
