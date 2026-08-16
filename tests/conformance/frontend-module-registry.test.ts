@@ -1,9 +1,10 @@
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = process.cwd();
 const registryPath = join(root, "docs", "frontend-modules", "registry.json");
+const serverOnlyPath = join(root, "docs", "frontend-modules", "server-only.json");
 
 type FrontendModule = {
   id: string;
@@ -18,8 +19,17 @@ type Registry = {
   modules: FrontendModule[];
 };
 
+type ServerOnlyRegistry = {
+  schemaVersion: string;
+  modules: Array<{ modulePath: string; reason: string }>;
+};
+
 async function loadRegistry(): Promise<Registry> {
   return JSON.parse(await readFile(registryPath, "utf8")) as Registry;
+}
+
+async function loadServerOnlyRegistry(): Promise<ServerOnlyRegistry> {
+  return JSON.parse(await readFile(serverOnlyPath, "utf8")) as ServerOnlyRegistry;
 }
 
 describe("frontend-consumable module registry", () => {
@@ -46,6 +56,39 @@ describe("frontend-consumable module registry", () => {
       expect(guide, `${module.id} guide must name its consumption mode`).toContain(module.consumptionMode);
       expect(guide, `${module.id} guide must declare evidence status`).toMatch(/Evidence status/i);
       expect(guide, `${module.id} guide must contain a concrete example`).toMatch(/```/);
+    }
+  });
+
+  it("requires every top-level package and service to have an explicit frontend boundary", async () => {
+    const [registry, serverOnly] = await Promise.all([
+      loadRegistry(),
+      loadServerOnlyRegistry(),
+    ]);
+    expect(serverOnly.schemaVersion).toBe("engram.server-only-module-registry/v1");
+
+    const frontendPaths = new Set(registry.modules.map((module) => module.modulePath));
+    const serverOnlyPaths = new Set(serverOnly.modules.map((module) => module.modulePath));
+
+    for (const module of serverOnly.modules) {
+      expect(module.reason.trim().length, `${module.modulePath} must explain why it is server-only`).toBeGreaterThan(0);
+      expect(frontendPaths.has(module.modulePath), `${module.modulePath} cannot be frontend and server-only simultaneously`).toBe(false);
+      await expect(access(join(root, module.modulePath)), `${module.modulePath} must exist`).resolves.toBeUndefined();
+    }
+
+    const actualModules: string[] = [];
+    for (const rootDir of ["packages", "services"]) {
+      const entries = await readdir(join(root, rootDir), { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) actualModules.push(`${rootDir}/${entry.name}`);
+      }
+    }
+
+    for (const modulePath of actualModules) {
+      const classified = frontendPaths.has(modulePath) || serverOnlyPaths.has(modulePath);
+      expect(
+        classified,
+        `${modulePath} has no declared frontend boundary. Add an adjacent frontend-usage guide + registry entry, or classify it in server-only.json.`,
+      ).toBe(true);
     }
   });
 
