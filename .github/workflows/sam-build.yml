@@ -1,0 +1,47 @@
+name: Engram SAM Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'template.yaml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'services/**'
+      - 'packages/**'
+      - 'db/**'
+      - '.github/workflows/sam-build.yml'
+  pull_request:
+    paths:
+      - 'template.yaml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'services/**'
+      - 'packages/**'
+      - 'db/**'
+      - '.github/workflows/sam-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sam-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: aws-actions/setup-sam@v2
+
+      - run: npm install
+
+      - name: Validate SAM template
+        run: sam validate --template template.yaml
+
+      - name: Build SAM application
+        run: sam build --template template.yaml
