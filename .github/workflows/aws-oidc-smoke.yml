@@ -1,0 +1,66 @@
+name: AWS OIDC Smoke
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/aws-oidc-smoke.yml'
+      - '.github/workflows/live-verification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      AWS_REGION: us-west-2
+      AWS_ROLE_ARN: arn:aws:iam::643285091333:role/EngramGitHubLiveVerification
+      BEDROCK_EMBEDDING_MODEL: amazon.titan-embed-text-v2:0
+
+    steps:
+      - name: Authenticate to AWS with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: EngramOidcSmoke
+          mask-aws-account-id: true
+
+      - name: Verify assumed role
+        run: aws sts get-caller-identity --query Arn --output text
+
+      - name: Invoke Titan Text Embeddings V2
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/engram-titan.json" <<'JSON'
+          {
+            "inputText": "Engram GitHub OIDC live verification.",
+            "dimensions": 1024,
+            "normalize": true
+          }
+          JSON
+
+          aws bedrock-runtime invoke-model \
+            --region "$AWS_REGION" \
+            --model-id "$BEDROCK_EMBEDDING_MODEL" \
+            --content-type application/json \
+            --accept application/json \
+            --body "fileb://$RUNNER_TEMP/engram-titan.json" \
+            "$RUNNER_TEMP/engram-titan-output.json"
+
+          python - <<'PY'
+          import json, os
+          path = os.path.join(os.environ['RUNNER_TEMP'], 'engram-titan-output.json')
+          with open(path) as f:
+              data = json.load(f)
+          dimensions = len(data.get('embedding', []))
+          print(f'bedrock_embedding_dimensions={dimensions}')
+          if dimensions != 1024:
+              raise SystemExit(f'Expected 1024 dimensions, got {dimensions}')
+          PY
