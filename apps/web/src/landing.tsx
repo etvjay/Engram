@@ -58,6 +58,17 @@ export function Landing() {
 
       <main id="main">
         <section className="hero">
+          <img
+            className="hero-field"
+            src="/brand/hands-field.jpg"
+            alt="A stone hand dissolving into dust meets a gold topographic hand at one point of light."
+          />
+          <ol className="slices" aria-hidden="true">
+            <li className="void" />
+            {pipeline.map((step) => (
+              <li key={step}><span>{step}</span></li>
+            ))}
+          </ol>
           <div className="hero-copy">
             <p className="kicker">Execution-memory infrastructure</p>
             <h1>Memory<br />for what<br />agents do.</h1>
@@ -68,7 +79,7 @@ export function Landing() {
             </p>
             <div className="row">
               <a className="pill" href={GITHUB}>Build with Engram</a>
-              <a className="ghost" href="/proof">Read docs</a>
+              <a className="ghost" href="/proof">Read the proof</a>
             </div>
             <ul className="traits">
               {traits.map(([k, v]) => (
@@ -76,12 +87,11 @@ export function Landing() {
               ))}
             </ul>
           </div>
-          <div className="hero-art">
-            <ol className="rail">
-              {pipeline.map((step) => <li key={step}>{step}</li>)}
-            </ol>
-            <img src="/brand/hands.jpg" alt="A marble hand reaching a gold circuit hand at a single point of light." />
-          </div>
+          <ol className="compose">
+            {lifecycle.map((item) => (
+              <li key={item.name}><b>{item.name}</b><span>{item.copy}</span></li>
+            ))}
+          </ol>
         </section>
 
         <section className="work" id="product">
