@@ -5,6 +5,8 @@ Engram's Bedrock live proof uses GitHub Actions OIDC to obtain short-lived AWS c
 ## Canonical live profile
 
 - Repository: `etvjay/Engram`
+- GitHub owner ID: `315516498`
+- GitHub repository ID: `1335146634`
 - Trusted branch: `main`
 - GitHub OIDC issuer: `https://token.actions.githubusercontent.com`
 - OIDC audience: `sts.amazonaws.com`
@@ -13,6 +15,12 @@ Engram's Bedrock live proof uses GitHub Actions OIDC to obtain short-lived AWS c
 - Embedding dimensions: `1024`
 - Required GitHub secret after setup: `AWS_ROLE_ARN`
 - Required GitHub secret for the causal proof: `DATABASE_URL`
+
+The Engram repository was created after GitHub's 2026-07-15 immutable OIDC-subject rollout. The AWS trust policy therefore uses the immutable subject:
+
+```text
+repo:etvjay@315516498/Engram@1335146634:ref:refs/heads/main
+```
 
 `us-west-2` is the selected live region because the account path successfully invoked Titan Text Embeddings V2 there and returned a 1024-dimensional embedding. `us-east-1` throttling is not treated as a product failure.
 
@@ -25,8 +33,7 @@ set -euo pipefail
 
 export AWS_REGION="us-west-2"
 export ROLE_NAME="EngramGitHubLiveVerification"
-export GITHUB_REPO="etvjay/Engram"
-export GITHUB_BRANCH="main"
+export GITHUB_OIDC_SUB='repo:etvjay@315516498/Engram@1335146634:ref:refs/heads/main'
 export ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 export OIDC_PROVIDER_ARN="arn:aws:iam::${ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
 export ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
@@ -47,8 +54,6 @@ else
 fi
 ```
 
-AWS validates GitHub's OIDC TLS chain using its trusted root CA set; a thumbprint is only needed when the IdP certificate cannot be validated from that trusted CA set.
-
 ## 3. Create the role trust policy
 
 The trust is intentionally scoped to the canonical Engram repository and `main` branch. This prevents a workflow in another repository or another Engram branch from assuming the live-verification role.
@@ -67,7 +72,7 @@ cat > "$HOME/engram-github-trust.json" <<JSON
       "Condition": {
         "StringEquals": {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": "repo:${GITHUB_REPO}:ref:refs/heads/${GITHUB_BRANCH}"
+          "token.actions.githubusercontent.com:sub": "${GITHUB_OIDC_SUB}"
         }
       }
     }
@@ -93,7 +98,7 @@ fi
 
 ## 4. Attach the least-privilege Bedrock invocation policy
 
-Resolve the model ARN from AWS rather than hard-coding an account-specific resource:
+Resolve the model ARN from AWS:
 
 ```bash
 export MODEL_ARN="$(aws bedrock get-foundation-model \
@@ -148,11 +153,7 @@ aws iam get-role-policy \
   --role-name "$ROLE_NAME" \
   --policy-name "EngramTitanEmbeddingInvoke" \
   --output json
-```
 
-Then print the value that must be placed in GitHub:
-
-```bash
 echo "AWS_ROLE_ARN=$ROLE_ARN"
 ```
 
