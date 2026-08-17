@@ -16,11 +16,13 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     env:
       AWS_REGION: us-west-2
       AWS_ROLE_ARN: arn:aws:iam::643285091333:role/EngramGitHubLiveVerification
       BEDROCK_EMBEDDING_MODEL: amazon.titan-embed-text-v2:0
+      AWS_RETRY_MODE: adaptive
+      AWS_MAX_ATTEMPTS: '10'
 
     steps:
       - name: Authenticate to AWS with GitHub OIDC
