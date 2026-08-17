@@ -92,7 +92,7 @@ button { font: inherit; }
   position: relative;
   min-height: calc(100vh - 64px);
   overflow: hidden;
-  background: #0a0a09;
+  background: var(--paper);
 }
 .hero-field {
   position: absolute;
@@ -100,7 +100,22 @@ button { font: inherit; }
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 62% 48%;
+  object-position: 12% 48%;
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: min(640px, 52%);
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    var(--paper) 0%,
+    var(--paper) 62%,
+    color-mix(in srgb, var(--paper) 70%, transparent) 82%,
+    transparent 100%
+  );
 }
 .slices {
   position: absolute;
@@ -128,9 +143,10 @@ button { font: inherit; }
 }
 .hero-copy {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   max-width: 540px;
   padding: 72px 36px 140px;
+  color: var(--ink);
 }
 .hero h1 {
   margin: 0;
@@ -139,6 +155,7 @@ button { font: inherit; }
   font-size: clamp(64px, 7.4vw, 108px);
   line-height: 0.88;
   letter-spacing: -0.038em;
+  color: var(--ink);
 }
 .lede { max-width: 32rem; color: var(--soft); font-size: 17px; line-height: 1.55; margin: 24px 0 0; }
 .row { display: flex; align-items: center; gap: 18px; margin-top: 28px; }
