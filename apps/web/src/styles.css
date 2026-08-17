@@ -187,7 +187,7 @@ button { font: inherit; }
 
 .work { background: var(--void); color: #ece7dc; padding: 80px 36px 72px; }
 .work-head { display: grid; grid-template-columns: 0.9fr 1.2fr; gap: 48px; align-items: start; }
-.work h2, .identity h2, .pillars h2, .end h2, .strip-copy h3, .instruments h3, .id-right h3 {
+.work h2, .identity h2, .pillars h2, .end h2, .instruments h3, .id-right h3 {
   margin: 0;
   font-family: var(--serif);
   font-weight: 400;
@@ -271,27 +271,13 @@ button { font: inherit; }
 }
 .id-right h3 { font-size: 42px; max-width: 10ch; }
 .id-right p { color: #b7b0a2; max-width: 28rem; }
-.id-right .ghost { margin-top: 18px; display: inline-flex; }
-.topo { width: 130%; max-width: none; margin: 28px 0 0 -10%; opacity: 0.92; }
-
-.strip {
-  display: grid;
-  grid-template-columns: 1fr 0.8fr 1.1fr;
-  background: #0e0e0c;
-  color: #ece7dc;
-}
-.strip figure { margin: 0; }
-.strip img { width: 100%; height: 100%; object-fit: cover; min-height: 280px; }
-.layers { padding: 36px 28px; border-left: 1px solid #26231c; border-right: 1px solid #26231c; }
-.slab { height: 28px; margin-bottom: 8px; }
+.id-right .layers { margin-top: 28px; }
+.slab { height: 22px; margin-bottom: 8px; }
 .s1 { background: #2a281f; }
 .s2 { background: var(--gold); width: 86%; }
 .s3 { background: #18170f; width: 70%; }
-.layers ul { list-style: none; margin: 18px 0 0; padding: 0; color: #8a8376; font-size: 13px; }
+.layers ul { list-style: none; margin: 16px 0 0; padding: 0; color: #8a8376; font-size: 13px; }
 .layers li + li { margin-top: 4px; }
-.strip-copy { padding: 48px 36px; }
-.strip-copy h3 { font-size: 36px; max-width: 12ch; }
-.strip-copy p { color: #b7b0a2; }
 
 .instruments {
   display: grid;
@@ -349,7 +335,7 @@ pre {
 .base nav { display: flex; gap: 18px; }
 
 @media (max-width: 980px) {
-  .hero, .work-head, .identity, .strip, .instruments, .pillars > div, .pair { grid-template-columns: 1fr; }
+  .hero, .work-head, .identity, .instruments, .pillars > div, .pair { grid-template-columns: 1fr; }
   .hero { min-height: auto; }
   .hero-field { position: relative; height: 58vw; min-height: 280px; }
   .slices { display: none; }

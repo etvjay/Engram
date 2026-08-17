@@ -166,30 +166,17 @@ export function Landing() {
             <p className="kicker gold">Engram systems</p>
             <h3>Memory is infrastructure.</h3>
             <p>Durable execution context for agents, systems, and workflows.</p>
-            <a className="ghost light" href="#instruments">Explore the platform</a>
-            <img className="topo" src="/brand/field.jpg" alt="" />
+            <div className="layers">
+              <div className="slab s1" />
+              <div className="slab s2" />
+              <div className="slab s3" />
+              <ul>
+                <li>Application</li>
+                <li>Runtime</li>
+                <li>Evidence</li>
+              </ul>
+            </div>
           </aside>
-        </section>
-
-        <section className="strip">
-          <figure>
-            <img src="/brand/eye.jpg" alt="Close study of an eye with a gold filament in the iris." />
-          </figure>
-          <div className="layers">
-            <p className="kicker">Engram layers</p>
-            <div className="slab s1" />
-            <div className="slab s2" />
-            <div className="slab s3" />
-            <ul>
-              <li>Application</li>
-              <li>Runtime</li>
-              <li>Evidence</li>
-            </ul>
-          </div>
-          <div className="strip-copy">
-            <h3>Architected for continuity.</h3>
-            <p>Engram captures and archives every step — so nothing important is ever lost.</p>
-          </div>
         </section>
 
         <section className="instruments" id="instruments">
