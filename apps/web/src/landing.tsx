@@ -3,178 +3,261 @@ import React, { useState } from "react";
 const GITHUB = "https://github.com/etvjay/Engram";
 const DOCS = "https://github.com/etvjay/Engram/blob/main/docs/architecture.md";
 
+const pipeline = ["Execution", "Trace", "Memory", "Influence", "Outcome"];
+
+const lifecycle = [
+  { name: "Capture", copy: "Every action is recorded." },
+  { name: "Index", copy: "Meaning is structured." },
+  { name: "Recall", copy: "Context is retrieved." },
+  { name: "Influence", copy: "Decisions are informed." },
+  { name: "Compose", copy: "New paths emerge." },
+];
+
+const traits = [
+  ["Recall", "Instant"],
+  ["Consistency", "Always"],
+  ["Nameability", "Essential"],
+  ["Scale", "Boundless"],
+];
+
+const bars = [
+  ["Task success", 42, 86],
+  ["Policy adherence", 48, 90],
+  ["Step consistency", 36, 82],
+  ["Outcome stability", 40, 84],
+];
+
+const pillars = [
+  { title: "Durable by design", copy: "Execution history, provenance, and influence stay reconstructable." },
+  { title: "Isolated by agent", copy: "Recall is scoped. Foreign memory cannot become action authority." },
+  { title: "Composable memory", copy: "One runtime through SDK, HTTP, MCP, and adapters." },
+  { title: "Developer first", copy: "Contracts, traces, and fail-closed policy — not a prompt bag." },
+];
+
 export function Landing() {
-  const [navOpen, setNavOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="lp">
+    <div className="site">
       <a className="skip" href="#main">Skip to content</a>
 
-      <header className="nav">
-        <a className="wordmark" href="/" aria-label="Engram home">
-          <span className="mark" aria-hidden="true" />
-          Engram
-        </a>
-        <button
-          className="menu"
-          type="button"
-          aria-expanded={navOpen}
-          aria-controls="nav"
-          onClick={() => setNavOpen((o) => !o)}
-        >
-          Menu
-        </button>
-        <nav id="nav" className={navOpen ? "is-open" : ""}>
+      <header className="top">
+        <a className="logo" href="/"><i />Engram</a>
+        <button className="burger" aria-expanded={open} onClick={() => setOpen((v) => !v)}>Menu</button>
+        <nav className={open ? "on" : ""}>
           <a href="#product">Product</a>
-          <a href="#protocol">Protocol</a>
+          <a href="#system">System</a>
           <a href="/proof">Proof</a>
           <a href={DOCS}>Docs</a>
         </nav>
-        <a className="cta" href={GITHUB}>Build with Engram</a>
+        <div className="top-end">
+          <a className="quiet" href="/proof">See proof</a>
+          <a className="pill" href={GITHUB}>Build with Engram</a>
+        </div>
       </header>
 
       <main id="main">
         <section className="hero">
           <div className="hero-copy">
             <p className="kicker">Execution-memory infrastructure</p>
-            <h1>Memory for what agents do.</h1>
+            <h1>Memory<br />for what<br />agents do.</h1>
             <p className="lede">
-              Engram persists intent, decisions, and outcomes so later runs
-              execute with context, not amnesia. The application still decides.
+              Engram is the execution-memory layer for agents and systems. We persist
+              intent, decisions, and outcomes — so future runs execute with context,
+              not amnesia.
             </p>
-            <div className="actions">
-              <a className="cta" href={GITHUB}>Build with Engram</a>
-              <a className="text-link" href="/proof">Read the proof</a>
+            <div className="row">
+              <a className="pill" href={GITHUB}>Build with Engram</a>
+              <a className="ghost" href="/proof">Read docs</a>
             </div>
             <ul className="traits">
-              <li><i /> Recall</li>
-              <li><i /> Consistency</li>
-              <li><i /> Provenance</li>
-              <li><i /> Isolation</li>
+              {traits.map(([k, v]) => (
+                <li key={k}><span>{k}</span><b>{v}</b></li>
+              ))}
             </ul>
           </div>
-          <div className="hero-art" aria-hidden="true">
-            <img src="/brand/hero-cream.jpg" alt="" />
+          <div className="hero-art">
+            <ol className="rail">
+              {pipeline.map((step) => <li key={step}>{step}</li>)}
+            </ol>
+            <img src="/brand/hands.jpg" alt="A marble hand reaching a gold circuit hand at a single point of light." />
           </div>
         </section>
 
-        <section className="product" id="product">
-          <div className="product-intro">
-            <p className="kicker light">Built for agentic systems</p>
-            <h2>Every run leaves a trace.<br />Every future run is informed.</h2>
-            <p>
-              Capture execution. Index it. Recall only what is eligible.
-              Record influence only when the application cites it.
-            </p>
-          </div>
-
-          <div className="instruments">
-            <article className="panel">
-              <header>
-                <span>Run comparison</span>
-                <b>Control vs treatment</b>
-              </header>
-              <p>A memory-free baseline stays visible beside the influenced run.</p>
-              <div className="bars" aria-hidden="true">
-                {[
-                  ["Task success", 46, 88],
-                  ["Policy adherence", 52, 91],
-                  ["Step consistency", 38, 84],
-                  ["Outcome stability", 41, 86],
-                ].map(([label, a, b]) => (
-                  <div className="bar-row" key={String(label)}>
-                    <span>{label}</span>
-                    <div>
-                      <i style={{ width: `${a}%` }} />
-                      <em style={{ width: `${b}%` }} />
-                    </div>
-                  </div>
+        <section className="work" id="product">
+          <div className="work-head">
+            <div>
+              <p className="kicker gold">Built for agentic systems</p>
+              <h2>Every run leaves a trace.<br />Every future run is informed.</h2>
+              <p>
+                Engram captures execution context at every step and makes a
+                reliably admissible set available to influence what happens next.
+              </p>
+              <ul className="life">
+                {lifecycle.map((item) => (
+                  <li key={item.name}>
+                    <b>{item.name}</b>
+                    <span>{item.copy}</span>
+                  </li>
                 ))}
-                <div className="legend">
-                  <span><i /> Without Engram</span>
-                  <span><em /> With recalled memory</span>
+              </ul>
+            </div>
+            <div className="pair">
+              <article className="card">
+                <header>
+                  <span>Run comparison</span>
+                  <strong>Informed runs are more consistent.</strong>
+                </header>
+                <div className="chart">
+                  {bars.map(([label, a, b]) => (
+                    <div key={String(label)} className="col">
+                      <div className="col-bars">
+                        <i style={{ height: `${a}%` }} />
+                        <em style={{ height: `${b}%` }} />
+                      </div>
+                      <span>{label}</span>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            </article>
-
-            <article className="panel">
-              <header>
-                <span>Execution trace</span>
-                <b>From raw steps to recalled memory</b>
-              </header>
-              <ol className="trace">
-                <li><code>00</code> Intent received</li>
-                <li><code>04</code> Policy check</li>
-                <li className="hit"><code>11</code> Memory recalled · retrieval <i>r-8f2</i></li>
-                <li className="hit"><code>12</code> Decision cites memory · <i>CHANGED_ACTION</i></li>
-                <li><code>18</code> Outcome recorded</li>
-              </ol>
-            </article>
-
-            <article className="panel">
-              <header>
-                <span>Influence path</span>
-                <b>Every trace leaves a fork</b>
-              </header>
-              <svg className="path" viewBox="0 0 360 140" role="img" aria-label="Baseline path versus memory-influenced path">
-                <path d="M16 108 C 90 108, 130 108, 180 72 S 280 28, 344 24" fill="none" stroke="#3a3428" strokeWidth="1.2" />
-                <path d="M16 108 C 90 108, 140 108, 188 88 S 270 70, 344 68" fill="none" stroke="#c4a15a" strokeWidth="1.6" />
-                <circle cx="16" cy="108" r="3.2" fill="#f4efe6" />
-                <circle cx="188" cy="88" r="4.4" fill="#c4a15a" />
-                <circle cx="344" cy="68" r="3.2" fill="#f4efe6" />
-                <text x="10" y="128" fill="#8a8376" fontSize="9">START</text>
-                <text x="168" y="78" fill="#c4a15a" fontSize="9">MEMORY</text>
-                <text x="312" y="86" fill="#8a8376" fontSize="9">OUTCOME</text>
-              </svg>
-            </article>
-
-            <article className="panel">
-              <header>
-                <span>Provenance</span>
-                <b>Attested, versioned, verifiable</b>
-              </header>
-              <div className="stack" aria-hidden="true">
-                <div><b>1 Capture</b><span>Intent, action, context</span></div>
-                <div><b>2 Attest</b><span>Exact retrieval + state digest</span></div>
-                <div><b>3 Store</b><span>Immutable execution record</span></div>
-                <div><b>4 Verify</b><span>Reconstruct anytime</span></div>
-              </div>
-            </article>
+                <div className="key"><i /> Without Engram <em /> With Engram</div>
+              </article>
+              <article className="card">
+                <header>
+                  <span>Execution trace</span>
+                  <strong>From raw steps to recalled memory.</strong>
+                </header>
+                <ol className="log">
+                  <li><code>00:01</code> Intent received</li>
+                  <li><code>00:04</code> Policy check</li>
+                  <li className="ok"><code>00:11</code> Recall admitted <b>Recalled</b></li>
+                  <li className="ok"><code>00:12</code> Decision cites memory <b>Influenced</b></li>
+                  <li><code>00:18</code> Outcome recorded</li>
+                </ol>
+              </article>
+            </div>
           </div>
         </section>
 
-        <section className="protocol" id="protocol">
-          <div className="protocol-copy">
-            <p className="kicker">Protocol</p>
-            <h2>Retrieval is not influence.</h2>
+        <section className="identity" id="system">
+          <div className="id-left">
+            <p className="word">Engram</p>
+            <p className="kicker">Execution-memory infrastructure</p>
+            <h2>Built for what systems must remember.</h2>
             <p>
-              A memory can be found and still never touch a decision. Influence
-              requires the exact recall, the state that was shown, and a sourced
-              counterfactual when the action changes.
+              We persist intent, decisions, and outcomes — so systems can carry
+              context across time, agents, and environments.
             </p>
+            <a className="pill" href={GITHUB}>Build with Engram</a>
           </div>
-          <ol className="steps">
-            <li><span>01</span><strong>Admit</strong> from evidence, never from a summary blob.</li>
-            <li><span>02</span><strong>Expose</strong> only after policy, ownership, and lineage pass.</li>
-            <li><span>03</span><strong>Cite</strong> the retrieval that actually showed the memory.</li>
-            <li><span>04</span><strong>Keep</strong> the baseline. The application still chooses.</li>
-          </ol>
+          <figure className="bust">
+            <img src="/brand/bust.jpg" alt="A classical marble head, broken at the neck." />
+          </figure>
+          <aside className="id-right">
+            <p className="kicker gold">Engram systems</p>
+            <h3>Memory is infrastructure.</h3>
+            <p>Durable execution context for agents, systems, and workflows.</p>
+            <a className="ghost light" href="#instruments">Explore the platform</a>
+            <img className="topo" src="/brand/field.jpg" alt="" />
+          </aside>
         </section>
 
-        <section className="close">
-          <p className="kicker light">Start</p>
+        <section className="strip">
+          <figure>
+            <img src="/brand/eye.jpg" alt="Close study of an eye with a gold filament in the iris." />
+          </figure>
+          <div className="layers">
+            <p className="kicker">Engram layers</p>
+            <div className="slab s1" />
+            <div className="slab s2" />
+            <div className="slab s3" />
+            <ul>
+              <li>Application</li>
+              <li>Runtime</li>
+              <li>Evidence</li>
+            </ul>
+          </div>
+          <div className="strip-copy">
+            <h3>Architected for continuity.</h3>
+            <p>Engram captures and archives every step — so nothing important is ever lost.</p>
+          </div>
+        </section>
+
+        <section className="instruments" id="instruments">
+          <article>
+            <p className="kicker gold">Memory recall</p>
+            <h3>Recall what matters</h3>
+            <p>Eligible memory only. Ranked, filtered, and bound to the state that was shown.</p>
+            <div className="radar" aria-hidden="true" />
+            <dl>
+              <div><dt>User intent</dt><dd>0.98</dd></div>
+              <div><dt>Policy guidance</dt><dd>0.95</dd></div>
+              <div><dt>Previous outcome</dt><dd>0.93</dd></div>
+              <div><dt>Tool selection</dt><dd>0.89</dd></div>
+            </dl>
+          </article>
+          <article>
+            <p className="kicker gold">Influence path</p>
+            <h3>Every trace leaves influence</h3>
+            <p>Memory does not overwrite paths — it shapes what comes next.</p>
+            <svg viewBox="0 0 360 150" className="fork">
+              <path d="M18 118 C 100 118, 140 118, 190 78 S 290 30, 342 26" fill="none" stroke="#3a3428" strokeWidth="1.25" />
+              <path d="M18 118 C 100 118, 148 118, 196 92 S 280 74, 342 72" fill="none" stroke="#c4a15a" strokeWidth="1.7" />
+              <circle cx="18" cy="118" r="3.4" fill="#f3eee4" />
+              <circle cx="196" cy="92" r="5" fill="#c4a15a" />
+              <circle cx="342" cy="72" r="3.4" fill="#f3eee4" />
+              <text x="12" y="138" fill="#8a8376" fontSize="10">START</text>
+              <text x="172" y="80" fill="#c4a15a" fontSize="10">MEMORY</text>
+              <text x="300" y="92" fill="#8a8376" fontSize="10">OUTCOME</text>
+            </svg>
+          </article>
+          <article>
+            <p className="kicker gold">Provenance</p>
+            <h3>Provenance you can trust</h3>
+            <p>Every memory is attested, versioned, and verifiable.</p>
+            <ol className="prov">
+              <li><b>1</b> Capture intent, action, context</li>
+              <li><b>2</b> Attest retrieval and state digest</li>
+              <li><b>3</b> Store an immutable record</li>
+              <li><b>4</b> Verify anywhere, anytime</li>
+            </ol>
+          </article>
+          <article>
+            <p className="kicker gold">Application authority</p>
+            <h3>Systems remember. Outcomes improve.</h3>
+            <p>Engram records influence. The application still chooses the action.</p>
+            <pre>{`POST /v1/executions/{id}/decisions
+influences: [{
+  type: "CHANGED_ACTION",
+  retrievalId, memoryId
+}]`}</pre>
+          </article>
+        </section>
+
+        <section className="pillars">
+          <h2>Infrastructure for memory that scales with ambition.</h2>
+          <div>
+            {pillars.map((p) => (
+              <article key={p.title}>
+                <h3>{p.title}</h3>
+                <p>{p.copy}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="end">
+          <p className="kicker gold">Start</p>
           <h2>Give agents memory they can be held to.</h2>
-          <p>Engram will remember what happened. It will not decide what happens next.</p>
-          <div className="actions">
-            <a className="cta invert" href={GITHUB}>Open the repository</a>
-            <a className="text-link light" href="/proof">Run the causal proof</a>
+          <div className="row">
+            <a className="pill invert" href={GITHUB}>Build with Engram</a>
+            <a className="ghost light" href="/proof">Run the causal proof</a>
           </div>
         </section>
       </main>
 
-      <footer className="foot">
-        <a className="wordmark" href="/"><span className="mark" aria-hidden="true" />Engram</a>
-        <p>Execution memory. MIT. External workloads in the demo are simulated.</p>
+      <footer className="base">
+        <a className="logo" href="/"><i />Engram</a>
+        <p>© Engram. MIT. Demo workloads are simulated; memory causality is inspectable.</p>
         <nav>
           <a href={GITHUB}>GitHub</a>
           <a href={DOCS}>Architecture</a>
