@@ -1,6 +1,6 @@
 {
   "schemaVersion": "engram.frontend-module-registry/v1",
-  "updatedAt": "2026-08-16",
+  "updatedAt": "2026-08-17",
   "modules": [
     {
       "id": "http-api",
@@ -64,6 +64,13 @@
       "usageGuide": "services/demo/frontend-usage/README.md",
       "consumptionMode": "API_ONLY",
       "summary": "Deterministic public Run A -> memory -> Run B causal proof workload with explicit runtime-reconstruction evidence metadata."
+    },
+    {
+      "id": "marketing-landing",
+      "modulePath": "apps/web",
+      "usageGuide": "apps/web/frontend-usage/README.md",
+      "consumptionMode": "BROWSER_SAFE",
+      "summary": "Public marketing landing at / and preserved causal demo at /proof."
     }
   ]
 }
