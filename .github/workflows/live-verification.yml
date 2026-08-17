@@ -6,11 +6,11 @@ on:
       embedding_provider:
         description: Embedding provider used for the live proof
         required: true
-        default: vertex
+        default: bedrock
         type: choice
         options:
-          - vertex
           - bedrock
+          - vertex
 
 permissions:
   contents: read
@@ -23,11 +23,8 @@ jobs:
     env:
       ENGRAM_EMBEDDING_PROVIDER: ${{ inputs.embedding_provider }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-      BEDROCK_EMBEDDING_MODEL: ${{ secrets.BEDROCK_EMBEDDING_MODEL || 'amazon.titan-embed-text-v2:0' }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-west-2' }}
+      BEDROCK_EMBEDDING_MODEL: ${{ vars.BEDROCK_EMBEDDING_MODEL || 'amazon.titan-embed-text-v2:0' }}
       GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
       GOOGLE_CLOUD_LOCATION: ${{ secrets.GOOGLE_CLOUD_LOCATION || 'us-central1' }}
       VERTEX_EMBEDDING_MODEL: ${{ secrets.VERTEX_EMBEDDING_MODEL || 'gemini-embedding-001' }}
@@ -43,6 +40,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Authenticate to AWS with GitHub OIDC
+        if: inputs.embedding_provider == 'bedrock'
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: EngramLiveVerification
+          mask-aws-account-id: true
+
+      - name: Verify AWS caller identity
+        if: inputs.embedding_provider == 'bedrock'
+        run: aws sts get-caller-identity --query Arn --output text
 
       - name: Authenticate to Google Cloud with Workload Identity Federation
         if: inputs.embedding_provider == 'vertex'
@@ -60,7 +70,8 @@ jobs:
           set -euo pipefail
           required=(DATABASE_URL)
           if [[ "$ENGRAM_EMBEDDING_PROVIDER" == "bedrock" ]]; then
-            required+=(AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY)
+            required+=(AWS_REGION AWS_ROLE_ARN)
+            export AWS_ROLE_ARN='${{ secrets.AWS_ROLE_ARN }}'
           elif [[ "$ENGRAM_EMBEDDING_PROVIDER" == "vertex" ]]; then
             required+=(GOOGLE_CLOUD_PROJECT GOOGLE_CLOUD_LOCATION)
           else
