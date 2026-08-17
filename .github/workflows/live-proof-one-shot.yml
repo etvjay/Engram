@@ -1,0 +1,71 @@
+name: Engram Live Proof One Shot
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/live-proof-one-shot.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      ENGRAM_EMBEDDING_PROVIDER: bedrock
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      AWS_ROLE_ARN: arn:aws:iam::643285091333:role/EngramGitHubLiveVerification
+      AWS_REGION: us-west-2
+      BEDROCK_EMBEDDING_MODEL: amazon.titan-embed-text-v2:0
+      AWS_RETRY_MODE: adaptive
+      AWS_MAX_ATTEMPTS: '10'
+      COCKROACH_MCP_URL: https://cockroachlabs.cloud/mcp
+      COCKROACH_MCP_CLUSTER_ID: ${{ secrets.COCKROACH_MCP_CLUSTER_ID }}
+      COCKROACH_MCP_API_KEY: ${{ secrets.COCKROACH_MCP_API_KEY }}
+      COCKROACH_MCP_DATABASE: ${{ secrets.COCKROACH_MCP_DATABASE || 'defaultdb' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify DATABASE_URL exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${DATABASE_URL:-}" ]]; then
+            echo "::error::DATABASE_URL is not configured"
+            exit 1
+          fi
+
+      - name: Authenticate to AWS with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: EngramLiveProofOneShot
+          mask-aws-account-id: true
+
+      - name: Verify AWS caller identity
+        run: aws sts get-caller-identity --query Arn --output text
+
+      - run: npm install
+      - run: npm run build
+
+      - name: Run live Cockroach causal-spine proof
+        run: node dist/services/verification/src/live-verify.js
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engram-live-proof-${{ github.run_id }}
+          path: evidence/live/
+          if-no-files-found: warn
+          retention-days: 30
