@@ -23,7 +23,7 @@ jobs:
     env:
       ENGRAM_EMBEDDING_PROVIDER: ${{ inputs.embedding_provider }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN || 'arn:aws:iam::643285091333:role/EngramGitHubLiveVerification' }}
       AWS_REGION: ${{ vars.AWS_REGION || 'us-west-2' }}
       BEDROCK_EMBEDDING_MODEL: ${{ vars.BEDROCK_EMBEDDING_MODEL || 'amazon.titan-embed-text-v2:0' }}
       GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
