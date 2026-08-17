@@ -1,12 +1,6 @@
 name: AWS OIDC Smoke
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/aws-oidc-smoke.yml'
-      - '.github/workflows/live-verification.yml'
   workflow_dispatch:
 
 permissions:
