@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import "./styles.css";
+import "./landing-v11.css";
 
 const GITHUB = "https://github.com/etvjay/Engram";
 const DOCS = "https://github.com/etvjay/Engram/blob/main/docs/architecture.md";
@@ -6,31 +8,24 @@ const DOCS = "https://github.com/etvjay/Engram/blob/main/docs/architecture.md";
 const pipeline = ["Execution", "Trace", "Memory", "Influence", "Outcome"];
 
 const lifecycle = [
-  { name: "Capture", copy: "Every action is recorded." },
-  { name: "Index", copy: "Meaning is structured." },
-  { name: "Recall", copy: "Context is retrieved." },
-  { name: "Influence", copy: "Decisions are informed." },
-  { name: "Compose", copy: "New paths emerge." },
+  { name: "Capture", copy: "Consequential execution evidence is recorded." },
+  { name: "Index", copy: "Experience is structured for later retrieval." },
+  { name: "Recall", copy: "Relevant prior experience is retrieved." },
+  { name: "Influence", copy: "The system records when memory changes a decision." },
+  { name: "Compose", copy: "Later behavior can diverge from the prior path." },
 ];
 
 const traits = [
-  ["Recall", "Instant"],
-  ["Consistency", "Always"],
-  ["Nameability", "Essential"],
-  ["Scale", "Boundless"],
-];
-
-const bars = [
-  ["Task success", 42, 86],
-  ["Policy adherence", 48, 90],
-  ["Step consistency", 36, 82],
-  ["Outcome stability", 40, 84],
+  ["Persistence", "Across runtimes"],
+  ["Recall", "Context-bound"],
+  ["Influence", "Explicit"],
+  ["Isolation", "Per agent"],
 ];
 
 const pillars = [
-  { title: "Durable by design", copy: "Execution history, provenance, and influence stay reconstructable." },
-  { title: "Isolated by agent", copy: "Recall is scoped. Foreign memory cannot become action authority." },
-  { title: "Composable memory", copy: "One runtime through SDK, HTTP, MCP, and adapters." },
+  { title: "Durable by design", copy: "Execution history, provenance, and influence remain reconstructable." },
+  { title: "Isolated by agent", copy: "Recall is scoped so foreign memory cannot become action authority." },
+  { title: "Composable memory", copy: "One runtime surface across SDK, HTTP, MCP, and adapters." },
   { title: "Developer first", copy: "Contracts, traces, and fail-closed policy — not a prompt bag." },
 ];
 
@@ -51,8 +46,8 @@ export function Landing() {
           <a href={DOCS}>Docs</a>
         </nav>
         <div className="top-end">
-          <a className="quiet" href="/proof">See proof</a>
-          <a className="pill" href={GITHUB}>Build with Engram</a>
+          <a className="quiet" href={GITHUB}>GitHub</a>
+          <a className="pill" href="/proof">Watch an agent remember</a>
         </div>
       </header>
 
@@ -73,13 +68,12 @@ export function Landing() {
             <p className="kicker">Execution-memory infrastructure</p>
             <h1>Memory<br />for what<br />agents do.</h1>
             <p className="lede">
-              Engram is the execution-memory layer for agents and systems. We persist
-              intent, decisions, and outcomes — so future runs execute with context,
-              not amnesia.
+              Engram preserves consequential execution history, recalls relevant prior experience,
+              and records when that experience changes what an agent does next.
             </p>
             <div className="row">
-              <a className="pill" href={GITHUB}>Build with Engram</a>
-              <a className="ghost" href="/proof">Read the proof</a>
+              <a className="pill" href="/proof">Watch an agent remember</a>
+              <a className="ghost" href={GITHUB}>Build with Engram</a>
             </div>
             <ul className="traits">
               {traits.map(([k, v]) => (
@@ -98,10 +92,10 @@ export function Landing() {
           <div className="work-head">
             <div>
               <p className="kicker gold">Built for agentic systems</p>
-              <h2>Every run leaves a trace.<br />Every future run is informed.</h2>
+              <h2>Every run leaves a trace.<br />Relevant experience can change what happens next.</h2>
               <p>
-                Engram captures execution context at every step and makes a
-                reliably admissible set available to influence what happens next.
+                Engram turns consequential execution evidence into operational memory, retrieves it
+                under comparable conditions, and keeps recall separate from proven influence.
               </p>
               <ul className="life">
                 {lifecycle.map((item) => (
@@ -113,28 +107,43 @@ export function Landing() {
               </ul>
             </div>
             <div className="pair">
-              <article className="card">
+              <article className="card causal-card">
                 <header>
                   <span>Run comparison</span>
-                  <strong>Informed runs are more consistent.</strong>
+                  <strong>Something that happened before changed what the agent did next.</strong>
                 </header>
-                <div className="chart">
-                  {bars.map(([label, a, b]) => (
-                    <div key={String(label)} className="col">
-                      <div className="col-bars">
-                        <i style={{ height: `${a}%` }} />
-                        <em style={{ height: `${b}%` }} />
-                      </div>
-                      <span>{label}</span>
-                    </div>
-                  ))}
+                <div className="causal-mini">
+                  <div className="causal-run">
+                    <small>RUN A · NO PRIOR EXPERIENCE</small>
+                    <b>Route C</b>
+                    <i>↓</i>
+                    <strong>LIQUIDITY FAILURE</strong>
+                    <em>COMPENSATED</em>
+                  </div>
+                  <div className="causal-memory">
+                    <span>OPERATIONAL MEMORY</span>
+                    <b>Venue C failed under thin liquidity.</b>
+                    <i>influenced →</i>
+                  </div>
+                  <div className="causal-run informed">
+                    <small>RUN B · MEMORY RECALLED</small>
+                    <b>Route D</b>
+                    <i>↓</i>
+                    <strong>EXECUTION SUCCEEDED</strong>
+                    <em>CHANGED_ACTION</em>
+                  </div>
                 </div>
-                <div className="key"><i /> Without Engram <em /> With Engram</div>
+                <div className="causal-evidence">
+                  <span>External workload <b>SIMULATED</b></span>
+                  <span>Persistence <b>REAL</b></span>
+                  <span>Recall <b>REAL</b></span>
+                  <span>Influence trace <b>REAL</b></span>
+                </div>
               </article>
               <article className="card">
                 <header>
                   <span>Execution trace</span>
-                  <strong>From raw steps to recalled memory.</strong>
+                  <strong>From raw steps to recalled experience.</strong>
                 </header>
                 <ol className="log">
                   <li><code>00:01</code> Intent received</li>
@@ -154,8 +163,8 @@ export function Landing() {
             <p className="kicker">Execution-memory infrastructure</p>
             <h2>Built for what systems must remember.</h2>
             <p>
-              We persist intent, decisions, and outcomes — so systems can carry
-              context across time, agents, and environments.
+              Persist intent, decisions, outcomes, and their provenance so later runtimes can
+              recover relevant experience without inheriting a hidden session state.
             </p>
             <a className="pill" href={GITHUB}>Build with Engram</a>
           </div>
@@ -165,7 +174,7 @@ export function Landing() {
           <aside className="id-right">
             <p className="kicker gold">Engram systems</p>
             <h3>Memory is infrastructure.</h3>
-            <p>Durable execution context for agents, systems, and workflows.</p>
+            <p>Durable execution context for agents, systems, and long-running workflows.</p>
             <div className="layers">
               <div className="slab s1" />
               <div className="slab s2" />
@@ -183,19 +192,19 @@ export function Landing() {
           <article>
             <p className="kicker gold">Memory recall</p>
             <h3>Recall what matters</h3>
-            <p>Eligible memory only. Ranked, filtered, and bound to the state that was shown.</p>
+            <p>Eligible memory is ranked and filtered against the context in which it may be used.</p>
             <div className="radar" aria-hidden="true" />
             <dl>
-              <div><dt>User intent</dt><dd>0.98</dd></div>
-              <div><dt>Policy guidance</dt><dd>0.95</dd></div>
-              <div><dt>Previous outcome</dt><dd>0.93</dd></div>
-              <div><dt>Tool selection</dt><dd>0.89</dd></div>
+              <div><dt>Semantic relevance</dt><dd>Stage 1</dd></div>
+              <div><dt>Validity</dt><dd>Checked</dd></div>
+              <div><dt>Environment</dt><dd>Checked</dd></div>
+              <div><dt>Source outcome</dt><dd>Checked</dd></div>
             </dl>
           </article>
           <article>
             <p className="kicker gold">Influence path</p>
-            <h3>Every trace leaves influence</h3>
-            <p>Memory does not overwrite paths — it shapes what comes next.</p>
+            <h3>Recall is not influence</h3>
+            <p>Engram records when a retrieved memory materially changes the later decision.</p>
             <svg viewBox="0 0 360 150" className="fork">
               <path d="M18 118 C 100 118, 140 118, 190 78 S 290 30, 342 26" fill="none" stroke="#3a3428" strokeWidth="1.25" />
               <path d="M18 118 C 100 118, 148 118, 196 92 S 280 74, 342 72" fill="none" stroke="#c4a15a" strokeWidth="1.7" />
@@ -209,29 +218,25 @@ export function Landing() {
           </article>
           <article>
             <p className="kicker gold">Provenance</p>
-            <h3>Provenance you can trust</h3>
-            <p>Every memory is attested, versioned, and verifiable.</p>
+            <h3>Evidence you can inspect</h3>
+            <p>Operational memory stays linked to the execution evidence from which it was derived.</p>
             <ol className="prov">
               <li><b>1</b> Capture intent, action, context</li>
-              <li><b>2</b> Attest retrieval and state digest</li>
-              <li><b>3</b> Store an immutable record</li>
-              <li><b>4</b> Verify anywhere, anytime</li>
+              <li><b>2</b> Persist source execution and outcome</li>
+              <li><b>3</b> Record retrieval and memory references</li>
+              <li><b>4</b> Reconstruct why later behavior changed</li>
             </ol>
           </article>
           <article>
             <p className="kicker gold">Application authority</p>
-            <h3>Systems remember. Outcomes improve.</h3>
-            <p>Engram records influence. The application still chooses the action.</p>
-            <pre>{`POST /v1/executions/{id}/decisions
-influences: [{
-  type: "CHANGED_ACTION",
-  retrievalId, memoryId
-}]`}</pre>
+            <h3>Memory informs. Applications decide.</h3>
+            <p>Engram records influence while the application remains responsible for the action.</p>
+            <pre>{`POST /v1/executions/{id}/decisions\ninfluences: [{\n  type: "CHANGED_ACTION",\n  retrievalId, memoryId\n}]`}</pre>
           </article>
         </section>
 
         <section className="pillars">
-          <h2>Infrastructure for memory that scales with ambition.</h2>
+          <h2>Infrastructure for experience that survives the runtime that created it.</h2>
           <div>
             {pillars.map((p) => (
               <article key={p.title}>
@@ -243,11 +248,11 @@ influences: [{
         </section>
 
         <section className="end">
-          <p className="kicker gold">Start</p>
-          <h2>Give agents memory they can be held to.</h2>
+          <p className="kicker gold">Proof</p>
+          <h2>Watch prior execution experience change a fresh runtime's next decision.</h2>
           <div className="row">
-            <a className="pill invert" href={GITHUB}>Build with Engram</a>
-            <a className="ghost light" href="/proof">Run the causal proof</a>
+            <a className="pill invert" href="/proof">Run the causal proof</a>
+            <a className="ghost light" href={GITHUB}>Build with Engram</a>
           </div>
         </section>
       </main>
