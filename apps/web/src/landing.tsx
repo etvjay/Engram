@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import "./styles.css";
+import "./landing-v11.css";
 
 const GITHUB = "https://github.com/etvjay/Engram";
 const DOCS = "https://github.com/etvjay/Engram/blob/main/docs/architecture.md";
@@ -132,6 +133,12 @@ export function Landing() {
                     <em>CHANGED_ACTION</em>
                   </div>
                 </div>
+                <div className="causal-evidence">
+                  <span>External workload <b>SIMULATED</b></span>
+                  <span>Persistence <b>REAL</b></span>
+                  <span>Recall <b>REAL</b></span>
+                  <span>Influence trace <b>REAL</b></span>
+                </div>
               </article>
               <article className="card">
                 <header>
@@ -224,11 +231,7 @@ export function Landing() {
             <p className="kicker gold">Application authority</p>
             <h3>Memory informs. Applications decide.</h3>
             <p>Engram records influence while the application remains responsible for the action.</p>
-            <pre>{`POST /v1/executions/{id}/decisions
-influences: [{
-  type: "CHANGED_ACTION",
-  retrievalId, memoryId
-}]`}</pre>
+            <pre>{`POST /v1/executions/{id}/decisions\ninfluences: [{\n  type: "CHANGED_ACTION",\n  retrievalId, memoryId\n}]`}</pre>
           </article>
         </section>
 
