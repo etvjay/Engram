@@ -173,7 +173,6 @@ export class CockroachMemoryRepository implements MemoryRepository {
          LEFT JOIN memory_sources ms ON ms.memory_id=m.id
          LEFT JOIN outcomes o ON o.execution_id=ms.execution_id
          WHERE m.agent_id=$2
-           AND m.embedding IS NOT NULL
            AND (m.valid_from IS NULL OR m.valid_from <= now())
            AND (m.valid_until IS NULL OR m.valid_until > now())
            AND ($3::STRING IS NULL OR m.structured_context->>'workflowType'=$3)
