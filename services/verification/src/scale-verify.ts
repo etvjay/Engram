@@ -137,7 +137,7 @@ async function seed(pool: pg.Pool, input: { agentId: string; externalId: string;
 
 async function vectorPlan(pool: pg.Pool, agentId: string, query: string): Promise<Plan> {
   const r = await pool.query<Record<string, unknown>>(
-    `EXPLAIN SELECT id, embedding <=> $1::VECTOR AS distance FROM memories WHERE agent_id=$2 AND embedding IS NOT NULL ORDER BY embedding <=> $1::VECTOR LIMIT 8`,
+    `EXPLAIN SELECT id, embedding <=> $1::VECTOR AS distance FROM memories WHERE agent_id=$2 ORDER BY embedding <=> $1::VECTOR LIMIT 8`,
     [query, agentId],
   );
   return parsePlan(r.rows);
@@ -188,9 +188,9 @@ async function main() {
       const canonicalPlan = await explainEngramMemorySearch(pool, { agentExternalId: externalA, queryEmbedding: embedding, workflowType: WORKFLOW, environmentVersion: ENV, status: STATUS, limit: 8 });
       const diagnosticPlan = await vectorPlan(pool, agentA, query);
 
-      const vectorSql = `SELECT id,(embedding <=> $1::VECTOR)::FLOAT8 AS distance FROM memories WHERE agent_id=$2 AND embedding IS NOT NULL ORDER BY embedding <=> $1::VECTOR LIMIT 8`;
-      const exhaustiveSql = `SELECT id,(embedding <=> $1::VECTOR)::FLOAT8 AS distance FROM memories WHERE agent_id=$2 AND embedding IS NOT NULL ORDER BY ((embedding <=> $1::VECTOR)+0.0) LIMIT 8`;
-      const canonicalSql = `SELECT m.id,(m.embedding <=> $1::VECTOR)::FLOAT8 AS distance FROM memories m LEFT JOIN memory_sources ms ON ms.memory_id=m.id LEFT JOIN outcomes o ON o.execution_id=ms.execution_id WHERE m.agent_id=$2 AND m.embedding IS NOT NULL AND (m.valid_from IS NULL OR m.valid_from<=now()) AND (m.valid_until IS NULL OR m.valid_until>now()) AND m.structured_context->>'workflowType'=$3 AND m.environment_version=$4 AND o.status=ANY($5::STRING[]) ORDER BY m.embedding <=> $1::VECTOR LIMIT 8`;
+      const vectorSql = `SELECT id,(embedding <=> $1::VECTOR)::FLOAT8 AS distance FROM memories WHERE agent_id=$2 ORDER BY embedding <=> $1::VECTOR LIMIT 8`;
+      const exhaustiveSql = `SELECT id,(embedding <=> $1::VECTOR)::FLOAT8 AS distance FROM memories WHERE agent_id=$2 ORDER BY ((embedding <=> $1::VECTOR)+0.0) LIMIT 8`;
+      const canonicalSql = `SELECT m.id,(m.embedding <=> $1::VECTOR)::FLOAT8 AS distance FROM memories m LEFT JOIN memory_sources ms ON ms.memory_id=m.id LEFT JOIN outcomes o ON o.execution_id=ms.execution_id WHERE m.agent_id=$2 AND (m.valid_from IS NULL OR m.valid_from<=now()) AND (m.valid_until IS NULL OR m.valid_until>now()) AND m.structured_context->>'workflowType'=$3 AND m.environment_version=$4 AND o.status=ANY($5::STRING[]) ORDER BY m.embedding <=> $1::VECTOR LIMIT 8`;
       const exhaustive = await timed(pool, exhaustiveSql, [query, agentA], 1);
       const vectorOnly = await timed(pool, vectorSql, [query, agentA], iterations);
       const canonical = await timed(pool, canonicalSql, [query, agentA, WORKFLOW, ENV, STATUS], iterations);
@@ -210,9 +210,15 @@ async function main() {
     const vectorCspann = Boolean(final?.plans?.vectorOnlyDiagnostic?.usesVectorSearch && final?.plans?.vectorOnlyDiagnostic?.usesCosineIndex);
     const diagnosis = canonicalCspann ? "CANONICAL_QUERY_SELECTS_CSPANN" : vectorCspann ? "JOINS_OR_FILTERS_SUPPRESS_CSPANN" : "VECTOR_ONLY_QUERY_DID_NOT_SELECT_CSPANN";
     const evidence = { schemaVersion: "engram-cspann-scale-proof-v1", evidenceClass: "TESTED", verificationKind: "LIVE_SCALE_AND_QUERY_PLAN", startedAt, completedAt: new Date().toISOString(), commitSha: process.env.GITHUB_SHA ?? null, embeddingProviderSmoke: { provider: provider.provider, modelId: provider.modelId, dimensions: provider.dimensions, evidenceState: "VERIFIED" }, benchmarkBoundary: { fixtureExecutionEvidence: "SIMULATED", fixtureVectors: "DETERMINISTIC_SYNTHETIC_1024D", cockroachPersistence: "REAL", queryExecution: "REAL", explainPlans: "REAL" }, diagnosis, cspannCosineIndexUsage: canonicalCspann ? "VERIFIED" : "UNVERIFIED", vectorOnlyCspannUsage: vectorCspann ? "VERIFIED" : "UNVERIFIED", checkpoints };
-    await mkdir("evidence/live", { recursive: true }); await writeFile(OUTPUT, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
+    await mkdir("evidence/live", { recursive: true });
+    await writeFile(OUTPUT, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
     console.log(JSON.stringify({ ok: true, output: OUTPUT, diagnosis, cspannCosineIndexUsage: evidence.cspannCosineIndexUsage, vectorOnlyCspannUsage: evidence.vectorOnlyCspannUsage }));
-  } finally { await pool.end(); }
+  } finally {
+    await pool.end();
+  }
 }
 
-main().catch((error) => { console.error(error instanceof Error ? error.stack ?? error.message : String(error)); process.exitCode = 1; });
+main().catch((error) => {
+  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+  process.exitCode = 1;
+});
