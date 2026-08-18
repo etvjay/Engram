@@ -1,6 +1,6 @@
 {
   "schemaVersion": "engram.server-only-module-registry/v1",
-  "updatedAt": "2026-08-16",
+  "updatedAt": "2026-08-18",
   "modules": [
     { "modulePath": "packages/adapters", "reason": "Framework telemetry integration; frontend consumes resulting execution evidence through API surfaces." },
     { "modulePath": "packages/bedrock", "reason": "AWS Bedrock embedding client requires server-side credentials." },
@@ -10,6 +10,7 @@
     { "modulePath": "packages/execution-simulator", "reason": "Internal deterministic demo workload; frontend consumes demo API results." },
     { "modulePath": "packages/mcp-server", "reason": "Agent/tool protocol surface, not a browser SDK." },
     { "modulePath": "packages/memory-core", "reason": "Internal domain/repository layer; public frontend contracts are core protocol, SDK and API surfaces." },
+    { "modulePath": "packages/ollama", "reason": "Server-side Ollama embedding client; browsers must not call the local/private inference daemon directly." },
     { "modulePath": "packages/python", "reason": "Python client SDK; non-browser execution surface." },
     { "modulePath": "packages/runtime", "reason": "Server-side semantic authority and runtime policy enforcement." },
     { "modulePath": "packages/scenarios", "reason": "Internal experiment workloads and application fixtures, not product UI APIs." },
