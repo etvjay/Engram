@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveVectorCandidateLimit } from "../../packages/cockroach/src/repository.js";
+import { resolveVectorBeamSize, resolveVectorCandidateLimit } from "../../packages/cockroach/src/repository.js";
 
 describe("resolveVectorCandidateLimit", () => {
   afterEach(() => {
@@ -22,5 +22,30 @@ describe("resolveVectorCandidateLimit", () => {
   it("caps the candidate envelope", () => {
     process.env.ENGRAM_VECTOR_CANDIDATE_LIMIT = "1000";
     expect(resolveVectorCandidateLimit(8)).toBe(400);
+  });
+});
+
+describe("resolveVectorBeamSize", () => {
+  afterEach(() => {
+    delete process.env.ENGRAM_VECTOR_BEAM_SIZE;
+  });
+
+  it("defaults to the smallest live-tested beam that restored top-8 recall", () => {
+    expect(resolveVectorBeamSize()).toBe(128);
+  });
+
+  it("accepts an explicit positive integer beam", () => {
+    process.env.ENGRAM_VECTOR_BEAM_SIZE = "256";
+    expect(resolveVectorBeamSize()).toBe(256);
+  });
+
+  it("falls back to 128 for invalid values", () => {
+    process.env.ENGRAM_VECTOR_BEAM_SIZE = "not-a-number";
+    expect(resolveVectorBeamSize()).toBe(128);
+  });
+
+  it("caps the beam to keep configuration bounded", () => {
+    process.env.ENGRAM_VECTOR_BEAM_SIZE = "4096";
+    expect(resolveVectorBeamSize()).toBe(512);
   });
 });
