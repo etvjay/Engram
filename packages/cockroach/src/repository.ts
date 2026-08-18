@@ -32,6 +32,19 @@ export function resolveVectorCandidateLimit(resultLimit: number): number {
   return Math.min(Math.max(desired, resultLimit), 400);
 }
 
+/**
+ * Resolve the C-SPANN search beam size from ENGRAM_VECTOR_BEAM_SIZE.
+ * Controls how many graph nodes CockroachDB explores during ANN traversal
+ * for Stage 1 candidate generation. Higher values improve recall at the
+ * cost of latency. Validated as a positive integer; clamped to [1, 1024].
+ * Default is 128 (empirically determined: recovers full recall at 10k scale).
+ */
+export function resolveVectorBeamSize(): number {
+  const configured = Number(process.env.ENGRAM_VECTOR_BEAM_SIZE ?? "");
+  const value = Number.isInteger(configured) && configured > 0 ? configured : 128;
+  return Math.min(Math.max(value, 1), 1024);
+}
+
 export class CockroachMemoryRepository implements MemoryRepository {
   constructor(
     private readonly pool: pg.Pool,
@@ -156,6 +169,7 @@ export class CockroachMemoryRepository implements MemoryRepository {
     const retrievalId = randomUUID();
     const limit = Math.min(Math.max(input.limit ?? 8, 1), 50);
     const candidateLimit = resolveVectorCandidateLimit(limit);
+    const beamSize = resolveVectorBeamSize();
 
     return withTransaction(this.pool, async (client) => {
       const agentResult = await client.query<{ id: string }>(`SELECT id FROM agents WHERE external_id=$1`, [input.agentId]);
@@ -165,9 +179,10 @@ export class CockroachMemoryRepository implements MemoryRepository {
       await client.query(
         `INSERT INTO memory_retrievals (id, execution_id, agent_id, query, filters, retrieval_policy_version)
          VALUES ($1,$2,$3,$4,$5::JSONB,$6)`,
-        [retrievalId, input.executionId ?? null, agent.id, input.query, asJson({ workflowType: input.workflowType, status: input.status, environmentVersion: input.environmentVersion, candidateLimit }), input.retrievalPolicyVersion ?? "engram-hybrid-v1"],
+        [retrievalId, input.executionId ?? null, agent.id, input.query, asJson({ workflowType: input.workflowType, status: input.status, environmentVersion: input.environmentVersion, candidateLimit, beamSize }), input.retrievalPolicyVersion ?? "engram-hybrid-v1"],
       );
 
+      await client.query(`SET LOCAL vector_search_beam_size = ${beamSize}`);
       const candidateRows = await client.query<{ id: string; semantic_score: number }>(
         `SELECT id,
                 greatest(0, least(1, 1 - (embedding <=> $1::VECTOR))) AS semantic_score

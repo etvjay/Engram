@@ -5,7 +5,7 @@ import type pg from "pg";
 import { createCockroachPool } from "../../../packages/cockroach/src/client.js";
 import { applyEngramMigrations } from "../../../packages/cockroach/src/migrations.js";
 import { explainEngramMemorySearch } from "../../../packages/cockroach/src/vector-plan.js";
-import { resolveVectorCandidateLimit } from "../../../packages/cockroach/src/repository.js";
+import { resolveVectorCandidateLimit, resolveVectorBeamSize } from "../../../packages/cockroach/src/repository.js";
 import { createConfiguredEmbeddingProvider } from "../../../packages/embeddings/src/provider.js";
 
 const OUTPUT = "evidence/live/scale-latest.json";
@@ -141,15 +141,27 @@ async function seed(pool: pg.Pool, input: { agentId: string; externalId: string;
 }
 
 async function stage1(pool: pg.Pool, query: string, agentId: string, candidateLimit: number): Promise<Row[]> {
-  const result = await pool.query<Row>(
-    `SELECT id,(embedding <=> $1::VECTOR)::FLOAT8 AS distance
-       FROM memories
-      WHERE agent_id=$2
-      ORDER BY embedding <=> $1::VECTOR
-      LIMIT $3`,
-    [query, agentId, candidateLimit],
-  );
-  return result.rows.map((row) => ({ id: row.id, distance: Number(row.distance) }));
+  const beamSize = resolveVectorBeamSize();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`SET LOCAL vector_search_beam_size = ${beamSize}`);
+    const result = await client.query<Row>(
+      `SELECT id,(embedding <=> $1::VECTOR)::FLOAT8 AS distance
+         FROM memories
+        WHERE agent_id=$2
+        ORDER BY embedding <=> $1::VECTOR
+        LIMIT $3`,
+      [query, agentId, candidateLimit],
+    );
+    await client.query("COMMIT");
+    return result.rows.map((row) => ({ id: row.id, distance: Number(row.distance) }));
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function stage2(pool: pg.Pool, query: string, agentId: string, candidateIds: string[]): Promise<Row[]> {
@@ -248,6 +260,7 @@ async function main() {
         sizePerAgent: size,
         totalFixtureMemories: size * 2,
         candidateLimit,
+        beamSize: resolveVectorBeamSize(),
         seed: { agentA: seedA, agentB: seedB },
         plans: { stage1CandidateGeneration: candidatePlan },
         correctness: {

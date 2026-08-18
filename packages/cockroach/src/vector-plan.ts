@@ -1,4 +1,5 @@
 import type pg from "pg";
+import { resolveVectorBeamSize } from "./repository.js";
 
 export const ENGRAM_COSINE_VECTOR_INDEX = "memories_agent_embedding_cosine_idx" as const;
 
@@ -55,15 +56,28 @@ export async function explainEngramMemorySearch(
   const vector = toVectorLiteral(input.queryEmbedding);
   const limit = Math.min(Math.max(input.limit ?? 8, 1), 50);
   const candidates = candidateLimit(limit);
-  const result = await pool.query<Record<string, unknown>>(
-    `EXPLAIN SELECT id,
-                    greatest(0, least(1, 1 - (embedding <=> $1::VECTOR))) AS semantic_score
-       FROM memories
-      WHERE agent_id=$2
-      ORDER BY embedding <=> $1::VECTOR
-      LIMIT $3`,
-    [vector, agent.id, candidates],
-  );
+  const beamSize = resolveVectorBeamSize();
+  const client = await pool.connect();
+  let result: import("pg").QueryResult<Record<string, unknown>>;
+  try {
+    await client.query("BEGIN");
+    await client.query(`SET LOCAL vector_search_beam_size = ${beamSize}`);
+    result = await client.query<Record<string, unknown>>(
+      `EXPLAIN SELECT id,
+                      greatest(0, least(1, 1 - (embedding <=> $1::VECTOR))) AS semantic_score
+         FROM memories
+        WHERE agent_id=$2
+        ORDER BY embedding <=> $1::VECTOR
+        LIMIT $3`,
+      [vector, agent.id, candidates],
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw err;
+  } finally {
+    client.release();
+  }
 
   const plan = result.rows.map((row) => {
     const value = row.info ?? row[Object.keys(row)[0] ?? ""];
