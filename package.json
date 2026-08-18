@@ -10,6 +10,7 @@
     "dev:web": "vite --config apps/web/vite.config.ts",
     "migrate": "tsx scripts/migrate.ts",
     "verify:live": "tsx services/verification/src/live-verify.ts",
+    "verify:scale": "tsx services/verification/src/scale-verify.ts",
     "mcp:stdio": "tsx packages/mcp-server/src/stdio.ts",
     "test": "vitest run tests/e2e/memory-caused-behavior.test.ts",
     "test:integration": "vitest run tests/integration/cockroach-memory-loop.test.ts",
