@@ -24,6 +24,14 @@ function asJson(value: unknown): string {
   return JSON.stringify(value ?? {});
 }
 
+export function resolveVectorCandidateLimit(resultLimit: number): number {
+  const configured = Number(process.env.ENGRAM_VECTOR_CANDIDATE_LIMIT ?? "");
+  const desired = Number.isInteger(configured) && configured > 0
+    ? configured
+    : Math.max(resultLimit * 8, 64);
+  return Math.min(Math.max(desired, resultLimit), 400);
+}
+
 export class CockroachMemoryRepository implements MemoryRepository {
   constructor(
     private readonly pool: pg.Pool,
@@ -147,6 +155,7 @@ export class CockroachMemoryRepository implements MemoryRepository {
     const vector = toVectorLiteral(embedding);
     const retrievalId = randomUUID();
     const limit = Math.min(Math.max(input.limit ?? 8, 1), 50);
+    const candidateLimit = resolveVectorCandidateLimit(limit);
 
     return withTransaction(this.pool, async (client) => {
       const agentResult = await client.query<{ id: string }>(`SELECT id FROM agents WHERE external_id=$1`, [input.agentId]);
@@ -156,31 +165,43 @@ export class CockroachMemoryRepository implements MemoryRepository {
       await client.query(
         `INSERT INTO memory_retrievals (id, execution_id, agent_id, query, filters, retrieval_policy_version)
          VALUES ($1,$2,$3,$4,$5::JSONB,$6)`,
-        [retrievalId, input.executionId ?? null, agent.id, input.query, asJson({ workflowType: input.workflowType, status: input.status, environmentVersion: input.environmentVersion }), input.retrievalPolicyVersion ?? "engram-hybrid-v1"],
+        [retrievalId, input.executionId ?? null, agent.id, input.query, asJson({ workflowType: input.workflowType, status: input.status, environmentVersion: input.environmentVersion, candidateLimit }), input.retrievalPolicyVersion ?? "engram-hybrid-v1"],
       );
+
+      const candidateRows = await client.query<{ id: string; semantic_score: number }>(
+        `SELECT id,
+                greatest(0, least(1, 1 - (embedding <=> $1::VECTOR))) AS semantic_score
+           FROM memories
+          WHERE agent_id=$2
+          ORDER BY embedding <=> $1::VECTOR
+          LIMIT $3`,
+        [vector, agent.id, candidateLimit],
+      );
+      if (!candidateRows.rows.length) return { retrievalId, candidates: [] };
+
+      const semanticScores = new Map(candidateRows.rows.map((row) => [row.id, Number(row.semantic_score)]));
+      const candidateIds = candidateRows.rows.map((row) => row.id);
 
       const rows = await client.query<{
         id: string; memory_type: string; summary: string; structured_context: Record<string, unknown>; confidence: number;
         evidence_state: OperationalMemory["evidenceState"]; valid_from: Date | null; valid_until: Date | null;
         environment_version: string | null; tool_version: string | null; policy_version: string | null;
-        semantic_score: number; source_status: string | null; created_at: Date;
+        source_status: string | null; created_at: Date;
       }>(
         `SELECT m.id, m.memory_type, m.summary, m.structured_context, m.confidence, m.evidence_state,
                 m.valid_from, m.valid_until, m.environment_version, m.tool_version, m.policy_version, m.created_at,
-                greatest(0, least(1, 1 - (m.embedding <=> $1::VECTOR))) AS semantic_score,
                 o.status AS source_status
-         FROM memories m
-         LEFT JOIN memory_sources ms ON ms.memory_id=m.id
-         LEFT JOIN outcomes o ON o.execution_id=ms.execution_id
-         WHERE m.agent_id=$2
-           AND (m.valid_from IS NULL OR m.valid_from <= now())
-           AND (m.valid_until IS NULL OR m.valid_until > now())
-           AND ($3::STRING IS NULL OR m.structured_context->>'workflowType'=$3)
-           AND ($4::STRING IS NULL OR m.environment_version=$4)
-           AND ($5::STRING[] IS NULL OR o.status = ANY($5::STRING[]))
-         ORDER BY m.embedding <=> $1::VECTOR
-         LIMIT $6`,
-        [vector, agent.id, input.workflowType ?? null, input.environmentVersion ?? null, input.status?.length ? input.status : null, limit],
+           FROM memories m
+           LEFT JOIN memory_sources ms ON ms.memory_id=m.id
+           LEFT JOIN outcomes o ON o.execution_id=ms.execution_id
+          WHERE m.id = ANY($1::UUID[])
+            AND m.agent_id=$2
+            AND (m.valid_from IS NULL OR m.valid_from <= now())
+            AND (m.valid_until IS NULL OR m.valid_until > now())
+            AND ($3::STRING IS NULL OR m.structured_context->>'workflowType'=$3)
+            AND ($4::STRING IS NULL OR m.environment_version=$4)
+            AND ($5::STRING[] IS NULL OR o.status = ANY($5::STRING[]))`,
+        [candidateIds, agent.id, input.workflowType ?? null, input.environmentVersion ?? null, input.status?.length ? input.status : null],
       );
 
       const now = Date.now();
@@ -203,10 +224,11 @@ export class CockroachMemoryRepository implements MemoryRepository {
         const outcomeScore = ["FAILURE", "COMPENSATED", "PARTIAL", "ABORTED", "UNKNOWN"].includes(row.source_status ?? "") ? 1 : 0.5;
         const ageDays = Math.max(0, (now - row.created_at.getTime()) / 86_400_000);
         const recencyScore = Math.max(0, 1 - ageDays / 30);
-        const semanticScore = Number(row.semantic_score);
+        const semanticScore = semanticScores.get(row.id);
+        if (semanticScore === undefined) throw new Error(`Candidate ${row.id} is missing its Stage 1 semantic score`);
         const finalScore = scoreMemory({ memory, semanticScore, contextScore, outcomeScore, recencyScore });
         return { memory, semanticScore, contextScore, outcomeScore, confidenceScore: memory.confidence, recencyScore, finalScore };
-      }).sort((a, b) => b.finalScore - a.finalScore);
+      }).sort((a, b) => b.finalScore - a.finalScore).slice(0, limit);
 
       const candidates = scored.map((candidate, index) => ({ ...candidate, memoryId: candidate.memory.id, rank: index + 1 }));
       for (const c of candidates) {

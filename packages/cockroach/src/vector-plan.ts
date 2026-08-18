@@ -24,10 +24,19 @@ export type VectorPlanEvidence = {
   limitedScan: boolean;
 };
 
+function candidateLimit(resultLimit: number): number {
+  const configured = Number(process.env.ENGRAM_VECTOR_CANDIDATE_LIMIT ?? "");
+  const desired = Number.isInteger(configured) && configured > 0
+    ? configured
+    : Math.max(resultLimit * 8, 64);
+  return Math.min(Math.max(desired, resultLimit), 400);
+}
+
 /**
- * Explain the same candidate-generation shape used by CockroachMemoryRepository.
- * This intentionally does not force an index hint: evidence should show whether
- * CockroachDB's optimizer naturally selects the agent-scoped cosine C-SPANN index.
+ * Explain Stage 1 of CockroachMemoryRepository search: agent-scoped cosine
+ * candidate generation only. Canonical validity/context/source filters are
+ * applied in Stage 2 over the returned candidate IDs and intentionally do not
+ * participate in the vector-index access path.
  *
  * Do not add `embedding IS NOT NULL` here. CockroachDB 26.2.5 live diagnostics
  * proved that predicate suppresses the C-SPANN vector-search plan for this index.
@@ -45,30 +54,15 @@ export async function explainEngramMemorySearch(
 
   const vector = toVectorLiteral(input.queryEmbedding);
   const limit = Math.min(Math.max(input.limit ?? 8, 1), 50);
+  const candidates = candidateLimit(limit);
   const result = await pool.query<Record<string, unknown>>(
-    `EXPLAIN SELECT m.id, m.memory_type, m.summary, m.structured_context, m.confidence, m.evidence_state,
-                    m.valid_from, m.valid_until, m.environment_version, m.tool_version, m.policy_version, m.created_at,
-                    greatest(0, least(1, 1 - (m.embedding <=> $1::VECTOR))) AS semantic_score,
-                    o.status AS source_status
-       FROM memories m
-       LEFT JOIN memory_sources ms ON ms.memory_id=m.id
-       LEFT JOIN outcomes o ON o.execution_id=ms.execution_id
-      WHERE m.agent_id=$2
-        AND (m.valid_from IS NULL OR m.valid_from <= now())
-        AND (m.valid_until IS NULL OR m.valid_until > now())
-        AND ($3::STRING IS NULL OR m.structured_context->>'workflowType'=$3)
-        AND ($4::STRING IS NULL OR m.environment_version=$4)
-        AND ($5::STRING[] IS NULL OR o.status = ANY($5::STRING[]))
-      ORDER BY m.embedding <=> $1::VECTOR
-      LIMIT $6`,
-    [
-      vector,
-      agent.id,
-      input.workflowType ?? null,
-      input.environmentVersion ?? null,
-      input.status?.length ? input.status : null,
-      limit,
-    ],
+    `EXPLAIN SELECT id,
+                    greatest(0, least(1, 1 - (embedding <=> $1::VECTOR))) AS semantic_score
+       FROM memories
+      WHERE agent_id=$2
+      ORDER BY embedding <=> $1::VECTOR
+      LIMIT $3`,
+    [vector, agent.id, candidates],
   );
 
   const plan = result.rows.map((row) => {
