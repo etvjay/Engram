@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import "./styles.css";
 
 const GITHUB = "https://github.com/etvjay/Engram";
 const DOCS = "https://github.com/etvjay/Engram/blob/main/docs/architecture.md";
