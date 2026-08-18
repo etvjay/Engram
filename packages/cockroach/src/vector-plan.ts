@@ -28,6 +28,9 @@ export type VectorPlanEvidence = {
  * Explain the same candidate-generation shape used by CockroachMemoryRepository.
  * This intentionally does not force an index hint: evidence should show whether
  * CockroachDB's optimizer naturally selects the agent-scoped cosine C-SPANN index.
+ *
+ * Do not add `embedding IS NOT NULL` here. CockroachDB 26.2.5 live diagnostics
+ * proved that predicate suppresses the C-SPANN vector-search plan for this index.
  */
 export async function explainEngramMemorySearch(
   pool: pg.Pool,
@@ -51,7 +54,6 @@ export async function explainEngramMemorySearch(
        LEFT JOIN memory_sources ms ON ms.memory_id=m.id
        LEFT JOIN outcomes o ON o.execution_id=ms.execution_id
       WHERE m.agent_id=$2
-        AND m.embedding IS NOT NULL
         AND (m.valid_from IS NULL OR m.valid_from <= now())
         AND (m.valid_until IS NULL OR m.valid_until > now())
         AND ($3::STRING IS NULL OR m.structured_context->>'workflowType'=$3)
