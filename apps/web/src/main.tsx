@@ -5,7 +5,8 @@ import { ProofApp } from "./proof";
 import "./styles.css";
 
 function isProofRoute() {
-  return window.location.pathname === "/proof" || window.location.hash === "#proof";
+  const normalizedPath = window.location.pathname.replace(/\/+$/, "") || "/";
+  return normalizedPath === "/proof" || window.location.hash === "#proof";
 }
 
 createRoot(document.getElementById("root")!).render(
