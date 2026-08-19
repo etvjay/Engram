@@ -2,99 +2,197 @@
 
 **Execution memory for autonomous agents.**
 
-> Engram gives autonomous agents memory for what they have done, not just what they know.
+> Databases remember records. Engram remembers consequences.
 
-Engram is execution-memory infrastructure for autonomous systems. It preserves prior executions, derives operational memory from evidence, recalls that experience under comparable future conditions, governs whether it may influence action, and leaves enough provenance to reconstruct what changed because of it.
+Engram turns consequential execution history into durable operational experience, retrieves that experience under eligible future conditions, and records when it actually changes a later decision.
 
-The application or agent remains the decision authority. Engram does **not** choose the business action.
+The application or agent remains the decision authority. Engram does not choose the business action.
 
 ## Governing invariant
 
-Engram is complete only when a prior execution persisted in CockroachDB is retrieved under comparable future context, explicitly influences a later application/agent decision, causes an observable change from the memory-free baseline, and leaves enough provenance to reconstruct that relationship.
+Engram is complete only when a prior consequential execution survives its originating runtime, returns under an eligible future context, demonstrably influences a later decision, changes observable behavior from the memory-free baseline, and leaves enough provenance to reconstruct that causal relationship.
 
 ```text
 source execution
       ↓
+source outcome
+      ↓
 operational memory
       ↓
-future recall
+originating runtime ends
       ↓
-application decision references memory
+fresh runtime recalls memory
+      ↓
+decision explicitly references memory
       ↓
 action differs from baseline/control
       ↓
-outcome observed
+later outcome
 ```
 
-Retrieval alone is not influence. Prompt inclusion alone is not causal proof.
+**Recall is not influence.** Retrieval alone is not causal proof. Prompt inclusion alone is not causal proof.
+
+## HydraDB submission
+
+This branch explores Engram as a temporal experience graph on HydraDB.
+
+The core question is:
+
+> Can an agent explain why it changed its behavior as its experience — and reality itself — changed over time?
+
+HydraDB is used as the active experience substrate for this submission. Engram maps executions, outcomes, operational memories, retrievals, decisions, influences, and superseding experience into reconstructable temporal relationships.
+
+### Experience graph
+
+```text
+Agent
+ │
+ EXECUTED
+ ▼
+Execution A
+ │
+ PRODUCED
+ ▼
+Outcome A
+ │
+ DERIVED EXPERIENCE
+ ▼
+Operational Memory
+ │
+ RECALLED IN
+ ▼
+Execution B
+ │
+ INFLUENCED
+ ▼
+Decision B
+ │
+ SELECTED
+ ▼
+Action B
+ │
+ RESULTED IN
+ ▼
+Outcome B
+```
+
+The graph is evidence, not decoration: Engram should be able to reconstruct why a later decision changed and which prior consequence caused that change.
 
 ## What Engram includes
 
-- versioned `ExecutionEpisode` protocol;
-- stateless Engram Runtime for execution lifecycle and memory semantics;
+- versioned execution episodes;
+- stateless execution lifecycle and memory semantics;
 - policy-controlled admission, retrieval, influence, expiry and invalidation;
 - explicit recall → influence → counterfactual provenance;
-- CockroachDB-backed execution, memory, vector and evaluation state;
-- agent-scoped cosine vector retrieval;
-- Amazon Bedrock Titan embedding provider;
-- CockroachDB Cloud Managed MCP provenance inspection;
+- backend-neutral `MemoryRepository` contract;
+- HydraDB-backed temporal experience graph for this submission;
 - TypeScript SDK and Python HTTP SDK;
 - HTTP API;
-- semantic Engram MCP server;
-- OpenAI Agents, LangGraph and custom adapter surfaces;
-- read-focused control-plane backend;
-- evidence-safe memory evaluation and controlled experiments.
+- semantic Engram MCP surface;
+- framework adapters;
+- deterministic verification and evidence artifacts.
 
-See [`docs/architecture.md`](docs/architecture.md) for the system model.
+## Canonical proof
 
-## First demo proof
+The first proof is deliberately small and causal:
 
-The original deterministic demo is deliberately small:
-
-1. Run A has no relevant memory.
+1. Run A has no relevant prior experience.
 2. The application selects Route C.
 3. Route C encounters `LIQUIDITY_UNAVAILABLE`.
 4. Recovery is observed and Engram admits an operational lesson.
-5. A comparable Run B recalls that lesson.
-6. The application selects Route D instead and records the memory as `CHANGED_ACTION`.
-7. Run B succeeds.
-8. Engram preserves the memory-to-action trace.
+5. The originating runtime ends.
+6. A fresh Run B recalls the lesson under comparable conditions.
+7. The application selects Route D instead and records the memory as `CHANGED_ACTION`.
+8. Run B succeeds.
+9. Engram reconstructs the full memory-to-action lineage.
 
-The external multi-venue executor is **SIMULATED**. That boundary is intentional and independent from persistence, retrieval, provenance and cloud-integration evidence.
+The external multi-venue workload is **SIMULATED**. Persistence, retrieval, influence recording, lineage, and backend behavior must be promoted only from observed evidence.
 
-## Stronger acceptance scenarios
+## Hydra-native proof: temporal repair
 
-Engram is also tested outside the initial venue workload:
+The distinctive experiment asks a harder question:
 
-- **software deployment recovery** — prior migration failure/recovery changes a later comparable deployment strategy with a real memory-free control execution;
-- **autonomous coding regression** — prior reverted regression changes a later comparable coding methodology from patch-first to regression-test-first;
-- **incident recovery** — prior recovery that restored the primary service but caused a harmful secondary consequence changes the later mitigation sequence;
-- **bad memory** — stale or incompatible memory can be retrieved yet blocked before exposure/influence;
-- **competing memories** — contradictory evidence remains visible without implicit overwrite/adjudication;
-- **competing recall provenance** — a valid memory paired with the wrong retrieval is rejected.
+> **Why did the agent avoid C before but choose C now?**
 
-Canonical experiment records live under [`experiments/`](experiments/) and are registry-checked in CI.
+```text
+T1
+Venue C fails under thin liquidity
+→ experience: avoid C under this context
+
+T2
+Venue C later changes and succeeds
+→ new experience does not erase the old one
+
+T3
+fresh runtime faces comparable decision
+→ current evidence may support C again
+```
+
+The required result is not merely a new answer. Engram must reconstruct the temporal relationship between the old consequence, the newer evidence, and the later decision.
+
+## Evidence gates
+
+The Hydra work proceeds in five gates:
+
+1. **Portability** — the canonical causal proof passes through the HydraDB-backed repository.
+2. **Layman proof** — runtime death, recall ≠ influence, agent isolation, and change-of-mind scenarios are directly demonstrable.
+3. **Conformance** — HydraDB passes the Engram execution-memory semantic contract.
+4. **Temporal repair** — superseding experience changes current behavior without rewriting history.
+5. **Measurement** — deterministic correctness, causal trace completeness, and p50/p95 latency are recorded.
+
+Artifacts live under:
+
+```text
+evidence/hydra/
+  causal-latest.json
+  layman-latest.json
+  conformance-latest.json
+  temporal-repair-latest.json
+  benchmark-latest.json
+```
+
+## Causal Trace Completeness
+
+For every claimed influence, Engram should resolve:
+
+```text
+source execution
+source outcome
+operational memory
+retrieval
+later decision
+influence record
+counterfactual action when applicable
+later outcome
+```
+
+```text
+traceCompleteness = resolvedRequiredLinks / requiredLinks
+```
+
+Target for the canonical proof: `1.0`.
 
 ## Architecture
 
 ```text
-Control Plane
-  executions · memories · policies · evaluations
-        |
 Integration Surfaces
-  TypeScript SDK · Python SDK · HTTP API · Engram MCP · adapters
-        |
-Engram Runtime
-  recall · admission · eligibility · influence · provenance
-        |
-Execution Model
-  episodes · decisions · observations · outcomes · counterfactuals
-        |
-Evidence + Storage
-  CockroachDB · VECTOR/C-SPANN · evaluations · lineage
-        |
-External Integrations
-  Amazon Bedrock · CockroachDB Cloud Managed MCP
+TypeScript SDK · Python SDK · HTTP · MCP · framework adapters
+                         │
+                         ▼
+                   Engram Runtime
+       recall · admission · eligibility · influence
+                         │
+                         ▼
+                  Execution Memory
+ executions · outcomes · memories · decisions · provenance
+                         │
+                         ▼
+               HydraDB Experience Graph
+       temporal relationships · context · trace lineage
+                         │
+                         ▼
+                    Applications
+           agents remain action authority
 ```
 
 Canonical lifecycle:
@@ -113,195 +211,39 @@ Requirements:
 ```bash
 git clone https://github.com/etvjay/Engram.git
 cd Engram
+git checkout hydra/experience-graph
 npm install
 npm run check
 ```
 
-`npm run check` builds the project and runs the full deterministic/conformance test suite. Credential-gated CockroachDB integration bodies are not equivalent to live verification when `DATABASE_URL` is absent.
+HydraDB-specific setup and verification commands will be documented as the adapter lands. Do not treat missing credentials or skipped external integration bodies as live verification.
 
-### Environment
+## Backend contract
 
-Copy the template and fill only the integrations you intend to exercise:
-
-```bash
-cp .env.example .env
-```
-
-Never commit API keys, database credentials or `ENGRAM_API_TOKEN`.
-
-## CockroachDB
-
-Apply the complete ordered migration chain:
-
-```bash
-DATABASE_URL='postgresql://...' npm run migrate
-```
-
-Run the credential-gated integration suite:
-
-```bash
-DATABASE_URL='postgresql://...' npm run test:integration
-```
-
-CockroachDB is Engram's canonical operational-memory substrate. Application hot-path reads/writes use the PostgreSQL-compatible connection. CockroachDB Cloud Managed MCP is a separate read/introspection/provenance plane.
-
-Production retrieval is agent-scoped and cosine based. Successful vector ordering does **not** prove C-SPANN index use; the live verifier records the natural `EXPLAIN` plan and promotes that claim only when the optimizer actually selects the expected vector index.
-
-## TypeScript SDK
-
-Inside this monorepo, the canonical SDK barrel is `packages/sdk/src/index.ts` and exposes `Engram`, `httpTransport`, `runtimeTransport`, and the transport types:
+Engram core depends on a behavioral repository contract rather than a specific storage engine:
 
 ```ts
-import { Engram, httpTransport } from "./packages/sdk/src/index.js";
-
-const engram = new Engram(httpTransport({
-  baseUrl: process.env.ENGRAM_API_URL!,
-  apiToken: process.env.ENGRAM_API_TOKEN,
-}));
-
-const execution = await engram.startExecution({
-  agentId: "deployment-agent",
-  workflowType: "deployment",
-  intent: "Deploy safely",
-  context: { service: "api" },
-  constraints: {},
-});
-
-const recall = await execution.recall({ query: "comparable prior failures" });
-
-// The application/agent decides. Engram does not.
-const decision = await application.decide({ memories: recall.candidates });
-
-await execution.recordDecision({
-  decisionType: "DEPLOYMENT_STRATEGY",
-  selectedAction: decision.action,
-  reasoningSummary: decision.summary,
-  influences: decision.memoryInfluences,
-});
+interface MemoryRepository {
+  startExecution(input): Promise<{ executionId: string }>;
+  appendEvent(event): Promise<void>;
+  recordOutcome(outcome): Promise<void>;
+  persistMemory(memory, sourceExecutionIds): Promise<void>;
+  searchMemory(input): Promise<MemorySearchResult>;
+  recordDecision(decision, retrievalId?): Promise<void>;
+  getTrace(executionId): Promise<unknown>;
+}
 ```
 
-The SDK is currently a monorepo package surface; publication as an installable `@engram/sdk` registry package is not claimed yet.
+For this submission, HydraDB is the active implementation target.
 
-## Python SDK
+## Submission thesis
 
-```python
-from engram import Engram
+> **Most memory systems answer: “What does the agent remember?”**
+>
+> **Engram asks: “What did reality teach the agent, and what did that lesson later cause it to do?”**
 
-client = Engram(
-    "https://YOUR_API",
-    api_token="SERVER_SIDE_TOKEN",
-)
+For HydraDB, the extension is:
 
-execution = client.start_execution(
-    agentId="deployment-agent",
-    workflowType="deployment",
-    intent="Deploy safely",
-    context={"service": "api"},
-    constraints={},
-)
+> **When reality changes, can the agent show why it changed its mind without rewriting what happened before?**
 
-recall = execution.recall("comparable prior failures")
-```
-
-## HTTP API
-
-Core runtime routes:
-
-```text
-POST /v1/executions
-POST /v1/executions/{id}/recall
-POST /v1/executions/{id}/decisions
-POST /v1/executions/{id}/observations
-POST /v1/executions/{id}/complete
-GET  /v1/executions/{id}/trace
-```
-
-Read-focused control-plane routes live under `/v1/control-plane/*`.
-
-`GET /health` and `POST /v1/demo/run` are intentionally public in the MVP. Every other `/v1/*` route requires `Authorization: Bearer $ENGRAM_API_TOKEN` and fails closed if the server token is not configured.
-
-The shared bearer token is an initial deployment guard, **not** production multi-tenant RBAC. Do not place it in a public frontend bundle.
-
-## Engram MCP vs CockroachDB Managed MCP
-
-These are intentionally different surfaces.
-
-**Engram MCP** exposes execution-memory semantics such as execution inspection, memory inspection, recall and influence explanation.
-
-**CockroachDB Cloud Managed MCP** is used as a read/introspection/provenance interface to the underlying CockroachDB data plane.
-
-Managed MCP is not Engram's transactional application database driver.
-
-## AWS deployment
-
-The SAM application packages successfully in CI. Local package proof:
-
-```bash
-npm install
-export PATH="$PWD/node_modules/.bin:$PATH"
-sam build
-```
-
-The repository contains two manual external-proof workflows:
-
-- `.github/workflows/live-verification.yml` — CockroachDB + Bedrock + Managed MCP + natural C-SPANN plan evidence;
-- `.github/workflows/aws-deploy-verification.yml` — SAM deploy plus deployed public/authenticated API exercise.
-
-Neither external workflow should be treated as successful merely because its code exists. See [`docs/deployment.md`](docs/deployment.md) for credentials, promotion rules and evidence artifacts.
-
-## Evidence status
-
-Engram keeps implementation/test evidence separate from live-cloud evidence.
-
-Current high-level boundary:
-
-| Area | Status |
-|---|---|
-| Protocol/runtime causal invariants | TESTED |
-| SDK/API/MCP/adapters | TESTED |
-| Memory policy/evaluation | TESTED |
-| Stronger execution-memory scenarios | TESTED |
-| SAM packaging | TESTED |
-| External demo workload | SIMULATED |
-| CockroachDB Cloud live persistence | UNVERIFIED until credentialed live proof |
-| Bedrock Titan live invocation | UNVERIFIED until credentialed live proof |
-| Managed MCP live provenance | UNVERIFIED until credentialed live proof |
-| Natural C-SPANN index selection | UNVERIFIED until EXPLAIN proves it |
-| AWS Lambda public deployment | UNVERIFIED until deploy-verification succeeds |
-
-The authoritative machine-readable claim ledger is [`evidence/claims.yaml`](evidence/claims.yaml).
-
-## Repository map
-
-```text
-apps/web/                  Control-plane UI
-services/api/              Lambda/HTTP API
-services/runtime/          Runtime composition
-services/demo/             Deterministic causal demo
-services/verification/     Credentialed external verifier
-packages/core/             Protocol primitives
-packages/episode/          ExecutionEpisode schema
-packages/runtime/          Memory runtime
-packages/policy/           Policy contracts/registry
-packages/evaluation/       Memory evaluation semantics
-packages/sdk/              TypeScript SDK
-packages/python/           Python SDK
-packages/mcp-server/       Engram semantic MCP
-packages/adapters/         Framework adapters
-packages/cockroach/        Cockroach persistence/vector runtime
-packages/cockroach-mcp/    Managed MCP client
-packages/bedrock/          Titan embeddings
-packages/scenarios/        Domain acceptance workloads
-db/migrations/             Ordered schema migrations
-experiments/               Governed acceptance evidence
-evidence/                  Claim ledger and adversarial reviews
-tests/                     Unit/integration/conformance/E2E proofs
-```
-
-## What Engram is not
-
-Engram is not generic chat memory, a generic RAG wrapper, an autonomous adjudicator, or a replacement for an agent framework. It does not infer that retrieval equals influence and does not turn a later successful outcome into proof that a memory was beneficial.
-
-## License
-
-MIT. See [`LICENSE`](LICENSE).
+See [`HACK_HYDRA.md`](HACK_HYDRA.md) for the evidence plan and submission scope.
