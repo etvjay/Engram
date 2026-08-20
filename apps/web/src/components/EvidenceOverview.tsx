@@ -1,4 +1,5 @@
 import React from "react";
+import { DistanceHistogram, LiveMechanismReplay, RadiusFrontier } from "./ResearchEvidence";
 import type { EvidenceIndex, EvidenceSyncState, ExperimentEvidence } from "../types/evidence";
 
 function value(v: unknown) { return v === undefined || v === null || v === "" ? "UNAVAILABLE" : String(v); }
@@ -18,6 +19,9 @@ function ExperimentCard({ experiment }: { experiment: ExperimentEvidence }) {
 export function EvidenceOverview({ index, sync, error }: { index: EvidenceIndex | null; sync: EvidenceSyncState; error: string | null }) {
   const dataset = index?.dataset;
   const experiments = index?.experiments ?? [];
+  const radius = experiments.find((item) => item.metrics?.radius_hits);
+  const live = experiments.find((item) => item.id === "PRISM-12" || item.kind === "LIVE_MECHANISM");
+
   return <section className="product-section evidence-section" id="evidence">
     <div className="section-head"><span className="section-index">04</span><div><p className="eyebrow">Evidence</p><h2>The product carries its claim boundary.</h2><p className="section-copy">Dataset, retrieval, graph structure, live mechanism, controls, causal effect, and reproduction belong in the product—not in an appendix.</p></div></div>
 
@@ -37,9 +41,16 @@ export function EvidenceOverview({ index, sync, error }: { index: EvidenceIndex 
         {[["Questions", dataset?.questions], ["Trajectories", dataset?.trajectories], ["Haystack questions", dataset?.haystack_questions], ["Runtime screenshot links", dataset?.runtime_screenshot_links], ["Validation", dataset?.validation]].map(([label, metric]) => <div className="dataset-stat" key={String(label)}><span>{label}</span><strong>{value(metric)}</strong></div>)}
       </div>
       <div className="commit-strip"><div><span>Benchmark code</span><strong>{value(dataset?.benchmark_code_commit)}</strong></div><div><span>Dataset revision</span><strong>{value(dataset?.dataset_revision)}</strong></div><div><span>HydraDB</span><strong>{value(dataset?.hydradb_commit)}</strong></div></div>
-      <div className="experiment-list">
-        {experiments.length ? experiments.map((experiment) => <ExperimentCard key={experiment.id} experiment={experiment} />) : <div className="evidence-empty compact"><span>EXPERIMENTS</span><h3>NOT_RUN / UNAVAILABLE</h3><p>The index contains no experiment objects yet.</p></div>}
-      </div>
     </>}
+
+    <div className="research-grid">
+      <RadiusFrontier experiment={radius} />
+      <DistanceHistogram experiment={radius} />
+      <LiveMechanismReplay experiment={live} />
+    </div>
+
+    {index && <div className="experiment-list">
+      {experiments.length ? experiments.map((experiment) => <ExperimentCard key={experiment.id} experiment={experiment} />) : <div className="evidence-empty compact"><span>EXPERIMENTS</span><h3>NOT_RUN / UNAVAILABLE</h3><p>The index contains no experiment objects yet.</p></div>}
+    </div>}
   </section>;
 }
