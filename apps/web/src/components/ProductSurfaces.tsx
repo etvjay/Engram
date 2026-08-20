@@ -1,0 +1,49 @@
+import React from "react";
+
+function SectionHead({ index, eyebrow, title, copy }: { index: string; eyebrow: string; title: string; copy: string }) {
+  return <div className="section-head"><span className="section-index">{index}</span><div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2><p className="section-copy">{copy}</p></div></div>;
+}
+
+export function ExecutionTrace() {
+  return <section className="product-section" id="trace">
+    <SectionHead index="01" eyebrow="Execution trace" title="What happened, and what survived it." copy="Engram treats execution topology as the primary artifact: state transitions, outcomes, evidence, memory origin, later recovery, and any recorded influence." />
+    <div className="trace-stage">
+      <div className="trace-meta"><span>ILLUSTRATIVE TOPOLOGY</span><strong>Mechanism view</strong><p>Geometry explains the interface. Numerical evidence is never synthesized here.</p></div>
+      <div className="graph-canvas">
+        <div className="seed-label">retrieval seed</div>
+        <div className="node seed"><small>STATE</small><b>41</b></div>
+        <div className="edge"><span>NEXT_STATE</span></div>
+        <div className="node evidence-node"><small>STATE</small><b>42</b><em>evidence found</em></div>
+        <div className="origin-line"><i /><span>experience originates here</span></div>
+      </div>
+    </div>
+  </section>;
+}
+
+export function ExperienceInspector() {
+  const fields = [
+    ["Memory ID", "UNAVAILABLE"], ["Source execution", "UNAVAILABLE"], ["Source trajectory", "UNAVAILABLE"],
+    ["Source state(s)", "UNAVAILABLE"], ["Observed event", "UNAVAILABLE"], ["Outcome", "UNAVAILABLE"],
+    ["Evidence", "UNAVAILABLE"], ["Interpretation", "UNAVAILABLE"], ["Recovered by", "UNAVAILABLE"],
+    ["Used by execution", "UNAVAILABLE"], ["Influence status", "NO INFLUENCE RECORDED"],
+  ];
+  return <section className="product-section" id="experience">
+    <SectionHead index="02" eyebrow="Experience" title="A memory is more than a sentence." copy="The inspector keeps provenance and influence separate. Recall means an experience re-entered context; it does not, by itself, prove that behavior changed." />
+    <div className="experience-shell">
+      <div className="experience-summary"><span className="status amber-outline">RECALLED</span><h3>Experience data appears when supplied by an execution evidence source.</h3><p>No fabricated memory object is shown in the absence of live data.</p><div className="invariant"><span>CRITICAL INVARIANT</span><strong>RECALL ≠ INFLUENCE</strong></div></div>
+      <div className="inspector-grid">{fields.map(([label, value]) => <div key={label}><span>{label}</span><strong className={value === "UNAVAILABLE" ? "dim" : ""}>{value}</strong></div>)}</div>
+    </div>
+  </section>;
+}
+
+export function AblationCompare() {
+  const stages = [
+    ["A0", "NO MEMORY", "NOT_RUN"], ["A1", "FLAT MEMORY", "NOT_RUN"], ["A2", "HYDRA STATE", "NOT_RUN"],
+    ["A3", "HYDRA GRAPH", "TESTED"], ["A4", "ENGRAM CAUSAL MEMORY", "NOT_RUN"],
+  ];
+  return <section className="product-section" id="compare">
+    <SectionHead index="03" eyebrow="Compare" title="Mechanism before causal claim." copy="A0 through A4 form the intended control-to-causal progression. The interface refuses to invent results for experiments that have not been run." />
+    <div className="ablation-row">{stages.map(([id, name, status], index) => <React.Fragment key={id}><article><span>{id}</span><strong>{name}</strong><em className={status === "TESTED" ? "tested" : ""}>{status}</em></article>{index < stages.length - 1 && <i>→</i>}</React.Fragment>)}</div>
+    <div className="causal-notice"><span>CAUSAL MEMORY</span><strong>NOT_RUN</strong><p>Memory-caused behavioral change remains an explicit future claim until PRISM-14/15 produce committed evidence.</p></div>
+  </section>;
+}
