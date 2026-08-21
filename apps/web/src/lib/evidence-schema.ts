@@ -1,4 +1,4 @@
-import type { DatasetEvidence, EvidenceIndex, EvidenceStatus, ExperimentEvidence } from "../types/evidence";
+import type { DatasetEvidence, EvidenceIndex, EvidenceStatus, ExperimentEvidence } from "../types/evidence.js";
 
 const STATUS = new Set<EvidenceStatus>(["IMPLEMENTED", "TESTED", "DEPLOYED", "SIMULATED", "PROPOSED", "UNKNOWN", "NOT_RUN"]);
 
