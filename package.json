@@ -8,6 +8,8 @@
     "build": "tsc -p tsconfig.json && npm run build:web",
     "build:web": "vite build --config apps/web/vite.config.ts",
     "dev:web": "vite --config apps/web/vite.config.ts",
+    "test:web:evidence": "vitest run tests/frontend/evidence-contract.test.ts",
+    "check:web": "npm run build:web && npm run test:web:evidence",
     "migrate": "tsx scripts/migrate.ts",
     "verify:live": "tsx services/verification/src/live-verify.ts",
     "verify:scale": "tsx services/verification/src/scale-verify.ts",
