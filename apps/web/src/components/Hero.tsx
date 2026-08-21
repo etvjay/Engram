@@ -1,5 +1,20 @@
 import React from "react";
 
+const runA = ["state", "state", "thin liquidity", "failure"];
+const runB = ["similar state", "recall", "decision", "altered action"];
+
+function RunTrack({ items, run }: { items: string[]; run: "A" | "B" }) {
+  return <div className={`hero-run hero-run-${run.toLowerCase()}`}>
+    <div className="hero-run-label"><span>RUNTIME {run}</span><i>{run === "A" ? "source execution" : "later execution"}</i></div>
+    <div className="hero-run-track">
+      {items.map((item, index) => <React.Fragment key={item}>
+        <div className={`hero-state hero-state-${item.replaceAll(" ", "-")}`}><small>{String(index + 1).padStart(2, "0")}</small><span>{item}</span></div>
+        {index < items.length - 1 && <div className="hero-edge" aria-hidden="true"><i /></div>}
+      </React.Fragment>)}
+    </div>
+  </div>;
+}
+
 export function Hero() {
   return (
     <section className="hero" id="overview">
@@ -8,19 +23,22 @@ export function Hero() {
         <h1>Memory for what agents do.</h1>
         <p className="hero-lede">Past executions should not disappear when an agent runtime does. Engram preserves what happened, reconstructs the experience when it becomes relevant again, and records whether that experience changed what happened next.</p>
         <div className="hero-actions"><a href="#trace">Follow the trace</a><a className="secondary" href="#evidence">Inspect evidence</a></div>
+        <div className="hero-invariant"><span>critical invariant</span><strong>RECALL ≠ INFLUENCE</strong><p>Seeing prior experience again is not proof that it changed behavior.</p></div>
       </div>
-      <div className="trajectory-hero" aria-label="Execution memory trajectory">
-        <div className="runtime-label top">RUNTIME A</div>
-        <div className="track track-a">
-          <span>state</span><i /><span>state</span><i /><span>state</span><i /><span className="failure">failure</span>
+
+      <div className="trajectory-hero" aria-label="Illustrative execution-memory trajectory across two runtimes">
+        <div className="trajectory-kicker"><span>ILLUSTRATIVE MECHANISM</span><strong>Execution survives runtime death.</strong></div>
+        <RunTrack items={runA} run="A" />
+
+        <div className="hero-memory-bridge">
+          <div className="memory-origin"><span>EXPERIENCE</span><strong>prior outcome becomes durable operational memory</strong></div>
+          <div className="memory-spine" aria-hidden="true"><i /><i /></div>
+          <div className="runtime-cut"><span>RUNTIME ENDS</span><b /></div>
+          <div className="memory-return"><span>relevant prior experience</span><strong>reconstructed</strong></div>
         </div>
-        <div className="memory-drop"><span>EXPERIENCE</span><i /><strong>durable memory trace</strong></div>
-        <div className="runtime-boundary"><span>runtime boundary</span></div>
-        <div className="memory-rise"><i /><span>prior experience</span></div>
-        <div className="runtime-label bottom">RUNTIME B</div>
-        <div className="track track-b">
-          <span>state</span><i /><span className="amber">recall</span><i /><span>decision</span><i /><span className="amber">altered action</span>
-        </div>
+
+        <RunTrack items={runB} run="B" />
+        <div className="influence-gate"><span>INFLUENCE GATE</span><strong>Did recalled experience materially affect this decision?</strong><i aria-hidden="true" /></div>
       </div>
     </section>
   );
