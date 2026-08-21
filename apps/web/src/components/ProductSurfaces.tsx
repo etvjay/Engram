@@ -1,5 +1,6 @@
 import React from "react";
-import type { AblationStage, EvidenceIndex, ExperimentEvidence } from "../types/evidence";
+import type { AblationStage, EvidenceIndex } from "../types/evidence";
+import { findAblationExperiment } from "../lib/ablation";
 
 function SectionHead({ index, eyebrow, title, copy }: { index: string; eyebrow: string; title: string; copy: string }) {
   return <div className="section-head"><span className="section-index">{index}</span><div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2><p className="section-copy">{copy}</p></div></div>;
@@ -35,10 +36,6 @@ export function ExperienceInspector() {
       <div className="inspector-grid">{fields.map(([label, value]) => <div key={label}><span>{label}</span><strong className={value === "UNAVAILABLE" ? "dim" : ""}>{value}</strong></div>)}</div>
     </div>
   </section>;
-}
-
-export function findAblationExperiment(index: EvidenceIndex | null, stage: AblationStage): ExperimentEvidence | undefined {
-  return (index?.experiments ?? []).find((experiment) => experiment.ablation_stage === stage);
 }
 
 export function AblationCompare({ index }: { index: EvidenceIndex | null }) {
