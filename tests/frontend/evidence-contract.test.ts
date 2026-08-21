@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { parseEvidenceIndex } from "../../apps/web/src/lib/evidence-schema";
-import { findAblationExperiment } from "../../apps/web/src/components/ProductSurfaces";
+import { parseEvidenceIndex } from "../../apps/web/src/lib/evidence-schema.js";
+import { findAblationExperiment } from "../../apps/web/src/components/ProductSurfaces.js";
+import type { ExperimentEvidence } from "../../apps/web/src/types/evidence.js";
 
 const baseIndex = {
   schema_version: "engram-evidence-index-v1",
@@ -68,8 +69,8 @@ describe("evidence index contract", () => {
 
   it("preserves ablation_stage from the canonical index", () => {
     const parsed = parseEvidenceIndex(baseIndex);
-    expect(parsed.experiments?.find((item) => item.id === "PRISM-13-A0")?.ablation_stage).toBe("A0");
-    expect(parsed.experiments?.find((item) => item.id === "A4")?.ablation_stage).toBe("A4");
+    expect(parsed.experiments?.find((item: ExperimentEvidence) => item.id === "PRISM-13-A0")?.ablation_stage).toBe("A0");
+    expect(parsed.experiments?.find((item: ExperimentEvidence) => item.id === "A4")?.ablation_stage).toBe("A4");
   });
 
   it("resolves ablations only from explicit ablation_stage metadata", () => {
@@ -81,7 +82,7 @@ describe("evidence index contract", () => {
 
   it("keeps PRISM-14 structurally separate from A4 behavioral causal proof", () => {
     const parsed = parseEvidenceIndex(baseIndex);
-    const prism14 = parsed.experiments?.find((item) => item.id === "PRISM-14");
+    const prism14 = parsed.experiments?.find((item: ExperimentEvidence) => item.id === "PRISM-14");
     expect(prism14?.status).toBe("TESTED");
     expect(prism14?.ablation_stage).toBeUndefined();
     expect(findAblationExperiment(parsed, "A4")?.status).toBe("NOT_RUN");
