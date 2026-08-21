@@ -1,7 +1,7 @@
 import React from "react";
 
 const runA = ["state", "state", "thin liquidity", "failure"];
-const runB = ["similar state", "recall", "decision", "altered action"];
+const runB = ["similar state", "recall", "decision", "action"];
 
 function RunTrack({ items, run }: { items: string[]; run: "A" | "B" }) {
   return <div className={`hero-run hero-run-${run.toLowerCase()}`}>
@@ -21,7 +21,7 @@ export function Hero() {
       <div className="hero-copy">
         <p className="eyebrow">Persistent execution memory for autonomous agents</p>
         <h1>Memory for what agents do.</h1>
-        <p className="hero-lede">Past executions should not disappear when an agent runtime does. Engram preserves what happened, reconstructs the experience when it becomes relevant again, and records whether that experience changed what happened next.</p>
+        <p className="hero-lede">Past executions should not disappear when an agent runtime does. Engram preserves what happened, reconstructs the experience when it becomes relevant again, and records whether that experience entered a later decision.</p>
         <div className="hero-actions"><a href="#trace">Follow the trace</a><a className="secondary" href="#evidence">Inspect evidence</a></div>
         <div className="hero-invariant"><span>critical invariant</span><strong>RECALL ≠ INFLUENCE</strong><p>Seeing prior experience again is not proof that it changed behavior.</p></div>
       </div>
