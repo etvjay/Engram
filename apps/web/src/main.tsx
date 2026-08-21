@@ -9,9 +9,10 @@ const root = createRoot(document.getElementById("root")!);
 if (isProofRoute) {
   void Promise.all([
     import("./proof-evidence.css"),
+    import("./proof-extensions.css"),
     import("./research.css"),
     import("./app/App"),
-  ]).then(([, , { App }]) => {
+  ]).then(([, , , { App }]) => {
     root.render(<React.StrictMode><App /></React.StrictMode>);
   });
 } else {
