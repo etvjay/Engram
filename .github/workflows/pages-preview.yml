@@ -1,3 +1,4 @@
+# Deploy the canonical Engram frontend branch to GitHub Pages.
 name: Engram GitHub Pages
 
 on:
