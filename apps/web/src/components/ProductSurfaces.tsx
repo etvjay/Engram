@@ -1,5 +1,5 @@
 import React from "react";
-import type { EvidenceIndex, ExperimentEvidence } from "../types/evidence";
+import type { AblationStage, EvidenceIndex, ExperimentEvidence } from "../types/evidence";
 
 function SectionHead({ index, eyebrow, title, copy }: { index: string; eyebrow: string; title: string; copy: string }) {
   return <div className="section-head"><span className="section-index">{index}</span><div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2><p className="section-copy">{copy}</p></div></div>;
@@ -26,32 +26,26 @@ export function ExperienceInspector() {
     ["Memory ID", "UNAVAILABLE"], ["Source execution", "UNAVAILABLE"], ["Source trajectory", "UNAVAILABLE"],
     ["Source state(s)", "UNAVAILABLE"], ["Observed event", "UNAVAILABLE"], ["Outcome", "UNAVAILABLE"],
     ["Evidence", "UNAVAILABLE"], ["Interpretation", "UNAVAILABLE"], ["Recovered by", "UNAVAILABLE"],
-    ["Used by execution", "UNAVAILABLE"], ["Influence status", "NO INFLUENCE RECORDED"],
+    ["Used by execution", "UNAVAILABLE"], ["Influence status", "UNAVAILABLE"],
   ];
   return <section className="product-section" id="experience">
     <SectionHead index="02" eyebrow="Experience" title="A memory is more than a sentence." copy="The inspector keeps provenance and influence separate. Recall means an experience re-entered context; it does not, by itself, prove that behavior changed." />
     <div className="experience-shell">
-      <div className="experience-summary"><span className="status amber-outline">RECALLED</span><h3>Experience data appears when supplied by an execution evidence source.</h3><p>No fabricated memory object is shown in the absence of live data.</p><div className="invariant"><span>CRITICAL INVARIANT</span><strong>RECALL ≠ INFLUENCE</strong></div></div>
+      <div className="experience-summary"><span className="status amber-outline">UNAVAILABLE</span><h3>Experience data appears when supplied by an execution evidence source.</h3><p>No recall or influence state is asserted without evidence.</p><div className="invariant"><span>CRITICAL INVARIANT</span><strong>RECALL ≠ INFLUENCE</strong></div></div>
       <div className="inspector-grid">{fields.map(([label, value]) => <div key={label}><span>{label}</span><strong className={value === "UNAVAILABLE" ? "dim" : ""}>{value}</strong></div>)}</div>
     </div>
   </section>;
 }
 
-function findAblationExperiment(index: EvidenceIndex | null, stage: string): ExperimentEvidence | undefined {
-  const normalized = stage.toUpperCase();
-  return (index?.experiments ?? []).find((experiment) => {
-    const id = experiment.id.toUpperCase();
-    const title = experiment.title.toUpperCase();
-    const scope = experiment.claim_scope?.toUpperCase() ?? "";
-    return id === normalized || id.startsWith(`${normalized}-`) || title.includes(normalized) || scope.includes(normalized);
-  });
+export function findAblationExperiment(index: EvidenceIndex | null, stage: AblationStage): ExperimentEvidence | undefined {
+  return (index?.experiments ?? []).find((experiment) => experiment.ablation_stage === stage);
 }
 
 export function AblationCompare({ index }: { index: EvidenceIndex | null }) {
-  const stages = [
+  const stages: ReadonlyArray<readonly [AblationStage, string]> = [
     ["A0", "NO MEMORY"], ["A1", "FLAT MEMORY"], ["A2", "HYDRA STATE"],
     ["A3", "HYDRA GRAPH"], ["A4", "ENGRAM CAUSAL MEMORY"],
-  ] as const;
+  ];
 
   const resolved = stages.map(([id, name]) => {
     const experiment = findAblationExperiment(index, id);
@@ -60,8 +54,8 @@ export function AblationCompare({ index }: { index: EvidenceIndex | null }) {
   const causal = resolved.find((stage) => stage.id === "A4");
 
   return <section className="product-section" id="compare">
-    <SectionHead index="03" eyebrow="Compare" title="Mechanism before causal claim." copy="A0 through A4 form the intended control-to-causal progression. Status is read from the canonical runtime evidence index; unavailable evidence stays unavailable rather than being inferred from frontend code." />
+    <SectionHead index="03" eyebrow="Compare" title="Mechanism before causal claim." copy="A0 through A4 form the intended control-to-causal progression. Status is read from explicit ablation metadata in the canonical runtime evidence index; unavailable evidence stays unavailable rather than being inferred from labels or frontend code." />
     <div className="ablation-row">{resolved.map((stage, stageIndex) => <React.Fragment key={stage.id}><article><span>{stage.id}</span><strong>{stage.name}</strong><em className={stage.status === "TESTED" ? "tested" : ""}>{stage.status}</em></article>{stageIndex < resolved.length - 1 && <i>→</i>}</React.Fragment>)}</div>
-    <div className="causal-notice"><span>CAUSAL MEMORY</span><strong>{causal?.status ?? "UNAVAILABLE"}</strong><p>{causal?.experiment?.claim_scope ?? "Causal provenance remains unavailable to the product until the canonical evidence index publishes a causal experiment."}</p></div>
+    <div className="causal-notice"><span>CAUSAL MEMORY</span><strong>{causal?.status ?? "UNAVAILABLE"}</strong><p>{causal?.experiment?.claim_scope ?? "Causal provenance remains unavailable to the product until the canonical evidence index publishes an A4 causal experiment."}</p></div>
   </section>;
 }
