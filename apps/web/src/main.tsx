@@ -7,11 +7,19 @@ const isProofRoute = window.location.pathname === `${base}/proof` || window.loca
 const root = createRoot(document.getElementById("root")!);
 
 if (isProofRoute) {
-  void import("./app/App").then(({ App }) => {
+  void Promise.all([
+    import("./proof-evidence.css"),
+    import("./research.css"),
+    import("./app/App"),
+  ]).then(([, , { App }]) => {
     root.render(<React.StrictMode><App /></React.StrictMode>);
   });
 } else {
-  void import("./landing").then(({ Landing }) => {
+  void Promise.all([
+    import("./landing.css"),
+    import("./landing-extensions.css"),
+    import("./landing"),
+  ]).then(([, , { Landing }]) => {
     root.render(<React.StrictMode><Landing /></React.StrictMode>);
   });
 }
