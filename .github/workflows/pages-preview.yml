@@ -1,4 +1,5 @@
 # Deploy the canonical Engram frontend branch to GitHub Pages.
+# Retriggered after allowing the frontend branch in the github-pages environment.
 name: Engram GitHub Pages
 
 on:
