@@ -26,9 +26,9 @@ export function App() {
   }, []);
 
   const source = useMemo(() => ({
-    commit: evidence?.commit?.slice(0, 7) ?? "UNKNOWN",
-    ref: evidence?.ref ?? "a3-engram-hydra-memory",
-    repository: evidence?.repository ?? "etvjay/Engram-Memory",
+    commit: evidence?.commit ? evidence.commit.slice(0, 7) : "UNAVAILABLE",
+    ref: evidence?.ref ?? "UNAVAILABLE",
+    repository: evidence?.repository ?? "UNAVAILABLE",
   }), [evidence]);
 
   return (
@@ -45,7 +45,7 @@ export function App() {
       </section>
       <ExecutionTrace />
       <ExperienceInspector />
-      <AblationCompare />
+      <AblationCompare index={evidence} />
       <EvidenceOverview index={evidence} sync={sync} error={error} />
       <footer className="site-footer" id="source">
         <div><span>BUILD / SOURCE / COMMIT</span><strong>Engram product surface</strong></div>
