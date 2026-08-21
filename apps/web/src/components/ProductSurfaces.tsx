@@ -1,4 +1,5 @@
 import React from "react";
+import type { EvidenceIndex, ExperimentEvidence } from "../types/evidence";
 
 function SectionHead({ index, eyebrow, title, copy }: { index: string; eyebrow: string; title: string; copy: string }) {
   return <div className="section-head"><span className="section-index">{index}</span><div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2><p className="section-copy">{copy}</p></div></div>;
@@ -36,14 +37,31 @@ export function ExperienceInspector() {
   </section>;
 }
 
-export function AblationCompare() {
+function findAblationExperiment(index: EvidenceIndex | null, stage: string): ExperimentEvidence | undefined {
+  const normalized = stage.toUpperCase();
+  return (index?.experiments ?? []).find((experiment) => {
+    const id = experiment.id.toUpperCase();
+    const title = experiment.title.toUpperCase();
+    const scope = experiment.claim_scope?.toUpperCase() ?? "";
+    return id === normalized || id.startsWith(`${normalized}-`) || title.includes(normalized) || scope.includes(normalized);
+  });
+}
+
+export function AblationCompare({ index }: { index: EvidenceIndex | null }) {
   const stages = [
-    ["A0", "NO MEMORY", "NOT_RUN"], ["A1", "FLAT MEMORY", "NOT_RUN"], ["A2", "HYDRA STATE", "NOT_RUN"],
-    ["A3", "HYDRA GRAPH", "TESTED"], ["A4", "ENGRAM CAUSAL MEMORY", "NOT_RUN"],
-  ];
+    ["A0", "NO MEMORY"], ["A1", "FLAT MEMORY"], ["A2", "HYDRA STATE"],
+    ["A3", "HYDRA GRAPH"], ["A4", "ENGRAM CAUSAL MEMORY"],
+  ] as const;
+
+  const resolved = stages.map(([id, name]) => {
+    const experiment = findAblationExperiment(index, id);
+    return { id, name, status: experiment?.status ?? "UNAVAILABLE", experiment };
+  });
+  const causal = resolved.find((stage) => stage.id === "A4");
+
   return <section className="product-section" id="compare">
-    <SectionHead index="03" eyebrow="Compare" title="Mechanism before causal claim." copy="A0 through A4 form the intended control-to-causal progression. The interface refuses to invent results for experiments that have not been run." />
-    <div className="ablation-row">{stages.map(([id, name, status], index) => <React.Fragment key={id}><article><span>{id}</span><strong>{name}</strong><em className={status === "TESTED" ? "tested" : ""}>{status}</em></article>{index < stages.length - 1 && <i>→</i>}</React.Fragment>)}</div>
-    <div className="causal-notice"><span>CAUSAL MEMORY</span><strong>NOT_RUN</strong><p>Memory-caused behavioral change remains an explicit future claim until PRISM-14/15 produce committed evidence.</p></div>
+    <SectionHead index="03" eyebrow="Compare" title="Mechanism before causal claim." copy="A0 through A4 form the intended control-to-causal progression. Status is read from the canonical runtime evidence index; unavailable evidence stays unavailable rather than being inferred from frontend code." />
+    <div className="ablation-row">{resolved.map((stage, stageIndex) => <React.Fragment key={stage.id}><article><span>{stage.id}</span><strong>{stage.name}</strong><em className={stage.status === "TESTED" ? "tested" : ""}>{stage.status}</em></article>{stageIndex < resolved.length - 1 && <i>→</i>}</React.Fragment>)}</div>
+    <div className="causal-notice"><span>CAUSAL MEMORY</span><strong>{causal?.status ?? "UNAVAILABLE"}</strong><p>{causal?.experiment?.claim_scope ?? "Causal provenance remains unavailable to the product until the canonical evidence index publishes a causal experiment."}</p></div>
   </section>;
 }
