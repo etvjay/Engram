@@ -13,9 +13,9 @@ export function ExecutionTrace() {
       <div className="trace-meta"><span>ILLUSTRATIVE TOPOLOGY</span><strong>Mechanism view</strong><p>Geometry explains the interface. Numerical evidence is never synthesized here.</p></div>
       <div className="graph-canvas">
         <div className="seed-label">retrieval seed</div>
-        <div className="node seed"><small>STATE</small><b>41</b></div>
+        <div className="node seed"><small>STATE</small><b>N</b></div>
         <div className="edge"><span>NEXT_STATE</span></div>
-        <div className="node evidence-node"><small>STATE</small><b>42</b><em>evidence found</em></div>
+        <div className="node evidence-node"><small>STATE</small><b>N+1</b><em>evidence found</em></div>
         <div className="origin-line"><i /><span>experience originates here</span></div>
       </div>
     </div>
@@ -41,7 +41,7 @@ export function ExperienceInspector() {
 export function AblationCompare({ index }: { index: EvidenceIndex | null }) {
   const stages: ReadonlyArray<readonly [AblationStage, string]> = [
     ["A0", "NO MEMORY"], ["A1", "FLAT MEMORY"], ["A2", "HYDRA STATE"],
-    ["A3", "HYDRA GRAPH"], ["A4", "ENGRAM CAUSAL MEMORY"],
+    ["A3", "HYDRA GRAPH"], ["A4", "BEHAVIORAL CAUSAL"],
   ];
 
   const resolved = stages.map(([id, name]) => {
