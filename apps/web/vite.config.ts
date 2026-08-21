@@ -8,5 +8,11 @@ export default defineConfig({
   build: {
     outDir: "../../dist-web",
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: new URL("./index.html", import.meta.url).pathname,
+        proof: new URL("./proof/index.html", import.meta.url).pathname,
+      },
+    },
   },
 });

@@ -3,7 +3,8 @@ import { createRoot } from "react-dom/client";
 
 const env = (import.meta as ImportMeta & { env: Record<string, string> }).env;
 const base = (env.BASE_URL ?? "/").replace(/\/$/, "");
-const isProofRoute = window.location.pathname === `${base}/proof` || window.location.hash === "#proof";
+const pathname = window.location.pathname.replace(/\/$/, "");
+const isProofRoute = pathname === `${base}/proof` || window.location.hash === "#proof";
 const root = createRoot(document.getElementById("root")!);
 
 if (isProofRoute) {
