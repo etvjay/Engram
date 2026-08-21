@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   root: new URL(".", import.meta.url).pathname,
+  base: process.env.GITHUB_PAGES === "true" ? "/Engram/" : "/",
   plugins: [react()],
   build: {
     outDir: "../../dist-web",
