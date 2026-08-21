@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseEvidenceIndex } from "../../apps/web/src/lib/evidence-schema.js";
-import { findAblationExperiment } from "../../apps/web/src/components/ProductSurfaces.js";
+import { findAblationExperiment } from "../../apps/web/src/lib/ablation.js";
 import type { ExperimentEvidence } from "../../apps/web/src/types/evidence.js";
 
 const baseIndex = {
