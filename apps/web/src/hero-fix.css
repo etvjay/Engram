@@ -1,0 +1,153 @@
+/* Hero-only correction from live visual QA.
+   The artwork and editorial copy occupy separate desktop fields instead of competing in one layer. */
+@media (min-width: 981px) {
+  .hero {
+    --hero-copy-width: clamp(500px, 34vw, 640px);
+    min-height: clamp(800px, 88vh, 940px);
+    display: grid;
+    grid-template-columns: var(--hero-copy-width) minmax(0, 1fr);
+    grid-template-rows: 1fr 104px;
+    background: var(--paper);
+    isolation: isolate;
+  }
+
+  .hero-field {
+    position: absolute;
+    inset: 0 0 104px var(--hero-copy-width);
+    width: calc(100% - var(--hero-copy-width));
+    height: calc(100% - 104px);
+    object-fit: cover;
+    object-position: 52% 48%;
+    z-index: 0;
+  }
+
+  .hero-copy {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: stretch;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+    padding: clamp(62px, 7vh, 88px) 48px 64px 42px;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    z-index: 4;
+    border-right: 1px solid rgba(17, 17, 16, 0.08);
+  }
+
+  .hero-copy::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -34px;
+    width: 34px;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(244,240,232,.5), transparent);
+  }
+
+  .hero h1 {
+    max-width: 6.5ch;
+    font-size: clamp(72px, 5.4vw, 104px);
+    line-height: .9;
+    letter-spacing: -.042em;
+  }
+
+  .hero .lede {
+    max-width: 30rem;
+    margin-top: 28px;
+    font-size: 16px;
+    line-height: 1.62;
+  }
+
+  .hero .row {
+    margin-top: 30px;
+    flex-wrap: wrap;
+  }
+
+  .hero .semantic-traits {
+    width: 100%;
+    max-width: 29rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 28px;
+    margin-top: 44px;
+  }
+
+  .slices {
+    inset: 0 0 104px var(--hero-copy-width);
+    grid-template-columns: repeat(5, 1fr);
+    z-index: 2;
+  }
+
+  .slices .void {
+    display: none;
+  }
+
+  .slices li:first-of-type + li {
+    border-left: 0;
+  }
+
+  .slices span {
+    padding: 20px 14px 0;
+    color: rgba(244, 240, 232, .72);
+  }
+
+  .compose {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-height: 104px;
+    margin: 0;
+    padding: 21px 42px 20px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0;
+    align-items: start;
+    background: rgba(8, 8, 7, .96);
+    border-top: 1px solid rgba(196, 161, 90, .22);
+    z-index: 6;
+  }
+
+  .compose li {
+    min-width: 0;
+    padding-right: 24px;
+  }
+
+  .compose li + li {
+    border-left: 1px solid rgba(244, 240, 232, .09);
+    padding-left: 24px;
+  }
+
+  .compose b {
+    margin-bottom: 7px;
+  }
+
+  .compose span {
+    color: rgba(244, 240, 232, .66);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+}
+
+@media (min-width: 1500px) and (max-height: 820px) {
+  .hero {
+    min-height: 830px;
+  }
+
+  .hero-copy {
+    justify-content: flex-start;
+    padding-top: 58px;
+  }
+
+  .hero h1 {
+    font-size: clamp(74px, 5vw, 96px);
+  }
+
+  .hero .semantic-traits {
+    margin-top: 34px;
+  }
+}
