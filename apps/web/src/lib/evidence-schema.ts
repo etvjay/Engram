@@ -1,6 +1,7 @@
-import type { DatasetEvidence, EvidenceIndex, EvidenceStatus, ExperimentEvidence } from "../types/evidence";
+import type { AblationStage, DatasetEvidence, EvidenceIndex, EvidenceStatus, ExperimentEvidence } from "../types/evidence";
 
 const STATUS = new Set<EvidenceStatus>(["IMPLEMENTED", "TESTED", "DEPLOYED", "SIMULATED", "PROPOSED", "UNKNOWN", "NOT_RUN"]);
+const ABLATION = new Set<AblationStage>(["A0", "A1", "A2", "A3", "A4"]);
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -39,12 +40,14 @@ export function parseEvidenceIndex(input: unknown): EvidenceIndex {
     const title = asString(item.title);
     const status = asString(item.status);
     if (!id || !title || !status) return [];
+    const ablationStage = asString(item.ablation_stage)?.toUpperCase();
     return [{
       id,
       title,
       kind: asString(item.kind) ?? "UNKNOWN",
       status: STATUS.has(status as EvidenceStatus) ? status as EvidenceStatus : "UNKNOWN",
       coverage: asString(item.coverage) as ExperimentEvidence["coverage"],
+      ablation_stage: ablationStage && ABLATION.has(ablationStage as AblationStage) ? ablationStage as AblationStage : undefined,
       claim_scope: asString(item.claim_scope),
       result_path: asString(item.result_path),
       report_path: asString(item.report_path),
