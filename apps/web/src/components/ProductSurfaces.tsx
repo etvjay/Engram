@@ -52,10 +52,12 @@ export function AblationCompare({ index }: { index: EvidenceIndex | null }) {
     return { id, name, status: experiment?.status ?? "UNAVAILABLE", experiment };
   });
   const causal = resolved.find((stage) => stage.id === "A4");
+  const structural = (index?.experiments ?? []).find((experiment) => experiment.id === "PRISM-14");
 
   return <section className="product-section" id="compare">
-    <SectionHead index="03" eyebrow="Compare" title="Mechanism before causal claim." copy="A0 through A4 form the intended control-to-causal progression. Status is read from explicit ablation metadata in the canonical runtime evidence index; unavailable evidence stays unavailable rather than being inferred from labels or frontend code." />
+    <SectionHead index="03" eyebrow="Compare" title="Mechanism before behavioral causality." copy="A0 through A4 form the control-to-causal progression. Structural causal provenance can be proven separately from the stronger memory-off versus memory-on behavioral causal experiment." />
     <div className="ablation-row">{resolved.map((stage, stageIndex) => <React.Fragment key={stage.id}><article><span>{stage.id}</span><strong>{stage.name}</strong><em className={stage.status === "TESTED" ? "tested" : ""}>{stage.status}</em></article>{stageIndex < resolved.length - 1 && <i>→</i>}</React.Fragment>)}</div>
-    <div className="causal-notice"><span>CAUSAL MEMORY</span><strong>{causal?.status ?? "UNAVAILABLE"}</strong><p>{causal?.experiment?.claim_scope ?? "Causal provenance remains unavailable to the product until the canonical evidence index publishes an A4 causal experiment."}</p></div>
+    <div className="causal-notice"><span>STRUCTURAL PROVENANCE</span><strong>{structural?.status ?? "UNAVAILABLE"}</strong><p>{structural?.claim_scope ?? "Structural causal provenance is unavailable until the canonical index publishes PRISM-14."}</p></div>
+    <div className="causal-notice"><span>BEHAVIORAL CAUSAL PROOF</span><strong>{causal?.status ?? "UNAVAILABLE"}</strong><p>{causal?.experiment?.claim_scope ?? "A4 remains unavailable until the canonical evidence index publishes the behavioral causal experiment."}</p></div>
   </section>;
 }
