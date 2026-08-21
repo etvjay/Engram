@@ -20,8 +20,9 @@ if (isProofRoute) {
   void Promise.all([
     import("./landing.css"),
     import("./landing-extensions.css"),
+    import("./hero-fix.css"),
     import("./landing"),
-  ]).then(([, , { Landing }]) => {
+  ]).then(([, , , { Landing }]) => {
     root.render(<React.StrictMode><Landing /></React.StrictMode>);
   });
 }
