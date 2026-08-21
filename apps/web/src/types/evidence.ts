@@ -1,6 +1,7 @@
 export type EvidenceStatus = "IMPLEMENTED" | "TESTED" | "DEPLOYED" | "SIMULATED" | "PROPOSED" | "UNKNOWN" | "NOT_RUN";
 export type EvidenceCoverage = "FULL" | "SUBSET" | "SMOKE";
 export type ExperimentKind = "BENCHMARK" | "DIAGNOSTIC" | "LIVE_MECHANISM" | "CONTROL" | "CAUSAL" | string;
+export type AblationStage = "A0" | "A1" | "A2" | "A3" | "A4";
 
 export type DatasetEvidence = {
   benchmark?: string;
@@ -23,6 +24,7 @@ export type ExperimentEvidence = {
   kind: ExperimentKind;
   status: EvidenceStatus;
   coverage?: EvidenceCoverage;
+  ablation_stage?: AblationStage;
   claim_scope?: string;
   result_path?: string;
   report_path?: string;
