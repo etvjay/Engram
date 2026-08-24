@@ -132,21 +132,29 @@ async function noMemoryControl(): Promise<void> {
 async function deletionMutation(): Promise<void> {
   const previous = process.env.ENGRAM_SIBYL_PYTHON;
   process.env.ENGRAM_SIBYL_PYTHON = process.env.ENGRAM_SIBYL_MISSING_PYTHON ?? "/definitely-missing-sibyl-python";
+  let deletionObserved = false;
+  let observedError = "";
   try {
     const store = new SibylRuntimeStore();
     await store.ping();
-    throw new Error("DELETION_MUTATION_FAILED: Sibyl unexpectedly remained available");
   } catch (error) {
-    emit({
-      phase: "sibyl-deletion-mutation",
-      degraded: true,
-      fallbackAvailable: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    deletionObserved = true;
+    observedError = error instanceof Error ? error.message : String(error);
   } finally {
     if (previous === undefined) delete process.env.ENGRAM_SIBYL_PYTHON;
     else process.env.ENGRAM_SIBYL_PYTHON = previous;
   }
+
+  if (!deletionObserved) {
+    throw new Error("DELETION_MUTATION_FAILED: Sibyl unexpectedly remained available");
+  }
+
+  emit({
+    phase: "sibyl-deletion-mutation",
+    degraded: true,
+    fallbackAvailable: false,
+    error: observedError,
+  });
 }
 
 switch (command) {
