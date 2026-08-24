@@ -21,6 +21,9 @@
     "demo:sibyl:recall": "tsx scripts/sibyl-demo.ts recall",
     "demo:sibyl:no-memory-control": "tsx scripts/sibyl-demo.ts control",
     "test:sibyl:deletion": "tsx scripts/sibyl-demo.ts deletion",
+    "demo:sibyl:provider:seed": "tsx scripts/sibyl-provider-demo.ts seed",
+    "demo:sibyl:provider:urgent": "tsx scripts/sibyl-provider-demo.ts urgent",
+    "demo:sibyl:provider:routine": "tsx scripts/sibyl-provider-demo.ts routine",
     "test:all": "vitest run",
     "test:watch": "vitest",
     "check": "npm run build && npm run test:all"
