@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import type { EvidenceState, MemoryRecall } from "../../core/src/protocol.js";
 import type {
   ExecutionContext,
@@ -19,14 +19,16 @@ import type {
   RuntimeExecutionRecord,
 } from "../../runtime/src/types.js";
 
-const bridgePath = fileURLToPath(new URL("../bridge.py", import.meta.url));
+function resolveBridgePath(): string {
+  return process.env.ENGRAM_SIBYL_BRIDGE ?? resolve(process.cwd(), "packages/sibyl/bridge.py");
+}
 
 type BridgeResponse<T> = { ok: true; result: T } | { ok: false; error: { type: string; message: string } };
 
 async function bridge<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
   const python = process.env.ENGRAM_SIBYL_PYTHON ?? "python3";
-  return new Promise<T>((resolve, reject) => {
-    const child = spawn(python, [bridgePath], {
+  return new Promise<T>((resolveResult, reject) => {
+    const child = spawn(python, [resolveBridgePath()], {
       env: process.env,
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -49,7 +51,7 @@ async function bridge<T>(op: string, args: Record<string, unknown> = {}): Promis
         reject(new Error(`SIBYL_${parsed.error.type}: ${parsed.error.message}`));
         return;
       }
-      resolve(parsed.result);
+      resolveResult(parsed.result);
     });
     child.stdin.end(JSON.stringify({ op, args }));
   });
@@ -182,7 +184,7 @@ export class SibylRuntimeStore implements EngramRuntimeStore {
 
   async getOutcomeEvidenceState(executionId: string): Promise<EvidenceState | null> {
     const outcome = await get<Record<string, unknown>>("outcome", executionId);
-    return outcome?.evidenceState as EvidenceState | undefined ?? null;
+    return (outcome?.evidenceState as EvidenceState | undefined) ?? null;
   }
 
   async persistMemory(memory: OperationalMemory, sourceExecutionIds: string[]): Promise<void> {
@@ -213,7 +215,7 @@ export class SibylRuntimeStore implements EngramRuntimeStore {
         const context = memory.structuredContext;
         if (input.workflowType && context.workflowType !== input.workflowType) return null;
         if (input.environmentVersion && memory.environmentVersion !== input.environmentVersion) return null;
-        if (input.status?.length && !input.status.includes(context.outcome as never)) return null;
+        if (input.status?.length && !input.status.includes(context.outcome as (typeof input.status)[number])) return null;
         const semanticScore = Math.max(0.55, 1 - index * 0.08);
         const contextScore = input.workflowType && context.workflowType === input.workflowType ? 1 : 0.75;
         const outcomeScore = ["FAILURE", "COMPENSATED", "PARTIAL", "ABORTED", "UNKNOWN"].includes(String(context.outcome ?? "")) ? 1 : 0.5;
