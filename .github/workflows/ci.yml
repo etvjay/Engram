@@ -39,5 +39,11 @@ jobs:
         run: npm run demo:sibyl:recall
       - name: Show no-memory control
         run: npm run demo:sibyl:no-memory-control
+      - name: Seed accumulated provider experience in process C
+        run: npm run demo:sibyl:provider:seed
+      - name: Fresh urgent provider decision uses relationship memory
+        run: npm run demo:sibyl:provider:urgent
+      - name: Fresh routine provider decision narrows authority contextually
+        run: npm run demo:sibyl:provider:routine
       - name: Remove Sibyl runtime and prove fail-closed degradation
         run: npm run test:sibyl:deletion
