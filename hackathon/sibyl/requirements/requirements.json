@@ -1,0 +1,18 @@
+{
+  "verified_at": "2026-08-24",
+  "status": "READY_TO_RESEARCH",
+  "requirements": [
+    {"id":"SIBYL-GATE-001","track":"main","class":"PUBLISHED_HARD","severity":"VETO","description":"Sibyl Memory is load-bearing; deleting it breaks or materially degrades the core function.","check":"run deletion mutation and compare claimed behavior","evidence_required":"failing/degraded no-Sibyl run plus passing Sibyl run","status":"UNVERIFIED"},
+    {"id":"SIBYL-GATE-002","track":"main","class":"PUBLISHED_HARD","severity":"VETO","description":"Fresh session recalls earlier persisted state.","check":"terminate process/session, restart clean, recall prior memory","evidence_required":"continuous demo segment with timestamp or commit hash","status":"UNVERIFIED"},
+    {"id":"SIBYL-GATE-003","track":"main","class":"PUBLISHED_HARD","severity":"VETO","description":"Recalled memory changes a decision, action, or result.","check":"paired memory vs no-memory decision comparison","evidence_required":"decision trace and observable action delta","status":"UNVERIFIED"},
+    {"id":"SIBYL-GATE-004","track":"main","class":"PUBLISHED_HARD","severity":"HIGH","description":"README exposes critical memory write/read paths in under two minutes.","check":"cold reviewer repo navigation test","evidence_required":"README call map","status":"UNVERIFIED"},
+    {"id":"SCORE-MEM-001","track":"main","class":"PUBLISHED_SCORING","severity":"HIGH","description":"Memory use is sophisticated enough for top band; coordination/dynamic-state behavior preferred.","check":"judge-model scorecard","evidence_required":"non-trivial stateful scenario plus adversarial memory handling","status":"UNVERIFIED"},
+    {"id":"SCORE-TECH-001","track":"main","class":"PUBLISHED_SCORING","severity":"HIGH","description":"Build is clean, robust and survives a second run/curious judge.","check":"repeatability and negative test suite","evidence_required":"test report and second-run evidence","status":"UNVERIFIED"},
+    {"id":"SUBMIT-001","track":"submission","class":"PUBLISHED_HARD","severity":"VETO","description":"Public MIT/Apache-2.0 repo with real commit history.","check":"repository inspection","evidence_required":"public repo/license/commits","status":"LOCAL_PASS"},
+    {"id":"SUBMIT-002","track":"submission","class":"PUBLISHED_HARD","severity":"VETO","description":"2–5 minute demo includes fresh-session recall.","check":"video review","evidence_required":"public video","status":"UNVERIFIED"},
+    {"id":"SUBMIT-003","track":"submission","class":"PUBLISHED_HARD","severity":"VETO","description":"README includes Prior Work declaration and required memory/partner notes.","check":"README audit","evidence_required":"merged README","status":"UNVERIFIED"},
+    {"id":"SUBMIT-004","track":"submission","class":"PUBLISHED_HARD","severity":"VETO","description":"Two public posts: demo and build log, tagging required accounts.","check":"public URL verification","evidence_required":"two public post URLs","status":"UNVERIFIED"},
+    {"id":"BASE-001","track":"base","class":"PUBLISHED_BONUS","severity":"OPTIONAL","description":"Executed Base action shown doing real product work.","check":"protocol-native receipt/explorer evidence","evidence_required":"wallet/x402/B20/contract evidence in demo","status":"UNVERIFIED"},
+    {"id":"VIRTUALS-001","track":"virtuals","class":"PUBLISHED_BONUS","severity":"OPTIONAL","description":"Virtuals-native integration is exercised in the demo.","check":"ACP/agent native evidence","evidence_required":"job/transaction/native receipt","status":"UNVERIFIED"}
+  ]
+}
