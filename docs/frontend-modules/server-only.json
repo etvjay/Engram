@@ -1,6 +1,6 @@
 {
   "schemaVersion": "engram.server-only-module-registry/v1",
-  "updatedAt": "2026-08-18",
+  "updatedAt": "2026-08-24",
   "modules": [
     { "modulePath": "packages/adapters", "reason": "Framework telemetry integration; frontend consumes resulting execution evidence through API surfaces." },
     { "modulePath": "packages/bedrock", "reason": "AWS Bedrock embedding client requires server-side credentials." },
@@ -14,6 +14,7 @@
     { "modulePath": "packages/python", "reason": "Python client SDK; non-browser execution surface." },
     { "modulePath": "packages/runtime", "reason": "Server-side semantic authority and runtime policy enforcement." },
     { "modulePath": "packages/scenarios", "reason": "Internal experiment workloads and application fixtures, not product UI APIs." },
+    { "modulePath": "packages/sibyl", "reason": "Hackathon runtime-store adapter launches the server-side Sibyl Python SDK and owns local durable memory access; browsers consume resulting traces through Engram API surfaces." },
     { "modulePath": "packages/vertex", "reason": "Google Vertex AI embedding client uses Application Default Credentials and must remain server-side." },
     { "modulePath": "services/runtime", "reason": "Server runtime construction and infrastructure wiring." },
     { "modulePath": "services/verification", "reason": "Credentialed live-verification and evidence generation service." }
