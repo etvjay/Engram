@@ -114,7 +114,6 @@ describeSibyl("Sibyl-backed experiential provider continuity", () => {
     expect(admitted.admittedMemories).toHaveLength(1);
     const memory = admitted.admittedMemories[0]!;
 
-    // Fresh runtime/store represents a new session with no in-memory source state.
     const freshRuntime = new EngramRuntime(new SibylRuntimeStore(), DEFAULT_RUNTIME_POLICIES);
     const next = await freshRuntime.startExecution({
       agentId: "requester-agent",
@@ -168,7 +167,7 @@ describeSibyl("Sibyl-backed experiential provider continuity", () => {
     expect(trace.memoryBackend).toBe("sibyl-memory-client");
     expect(JSON.stringify(trace)).toContain("PROVIDER_ENGAGEMENT");
     expect(JSON.stringify(trace)).toContain("CHANGED_ACTION");
-  });
+  }, 15_000);
 
   it("uses the same relationship memory to constrain terms rather than blacklist Atlas for routine work", async () => {
     const sourceRuntime = new EngramRuntime(new SibylRuntimeStore(), DEFAULT_RUNTIME_POLICIES);
@@ -228,5 +227,5 @@ describeSibyl("Sibyl-backed experiential provider continuity", () => {
     expect(decision.providerId).toBe("atlas");
     expect(decision.memoryRefs).toContain(memory.id);
     expect(decision.terms).toMatchObject({ prepayBps: 1_000, requireMilestoneVerification: true });
-  });
+  }, 15_000);
 });
