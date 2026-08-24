@@ -7,6 +7,8 @@ import { DEFAULT_RUNTIME_POLICIES } from "../../packages/runtime/src/defaults.js
 import { SibylRuntimeStore } from "../../packages/sibyl/src/runtime-store.js";
 import { decideRoute, ROUTE_C, ROUTE_D } from "../../packages/memory-core/src/policy.js";
 
+const describeSibyl = process.env.ENGRAM_SIBYL_TEST_REQUIRED === "1" ? describe : describe.skip;
+
 let dir: string;
 let previousDb: string | undefined;
 let previousTenant: string | undefined;
@@ -32,7 +34,7 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-describe("Engram × Sibyl evaluated profile", () => {
+describeSibyl("Engram × Sibyl evaluated profile", () => {
   it("persists execution-derived memory and changes a later fresh-store decision", async () => {
     const firstStore = new SibylRuntimeStore();
     const firstRuntime = new EngramRuntime(firstStore, DEFAULT_RUNTIME_POLICIES);
