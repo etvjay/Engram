@@ -19,7 +19,7 @@ jobs:
   sibyl-profile:
     runs-on: ubuntu-latest
     env:
-      ENGRAM_SIBYL_DB: ${{ runner.temp }}/engram-sibyl-demo.db
+      ENGRAM_SIBYL_DB: /tmp/engram-sibyl-demo.db
       ENGRAM_SIBYL_TENANT: engram-ci-demo
     steps:
       - uses: actions/checkout@v4
