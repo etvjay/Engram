@@ -17,6 +17,10 @@
     "test": "vitest run tests/e2e/memory-caused-behavior.test.ts",
     "test:integration": "vitest run tests/integration/cockroach-memory-loop.test.ts",
     "test:sibyl": "ENGRAM_SIBYL_TEST_REQUIRED=1 vitest run tests/integration/sibyl-memory-loop.test.ts",
+    "demo:sibyl:seed": "tsx scripts/sibyl-demo.ts seed",
+    "demo:sibyl:recall": "tsx scripts/sibyl-demo.ts recall",
+    "demo:sibyl:no-memory-control": "tsx scripts/sibyl-demo.ts control",
+    "test:sibyl:deletion": "tsx scripts/sibyl-demo.ts deletion",
     "test:all": "vitest run",
     "test:watch": "vitest",
     "check": "npm run build && npm run test:all"
