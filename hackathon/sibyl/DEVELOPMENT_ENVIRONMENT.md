@@ -1,6 +1,6 @@
 # Development Environment
 
-Status: `PROBED_AWAITING_GOLDEN_CI` for Sibyl integration.
+Status: `PROBED_BASE_GOLDEN_PASS_PRESSURE_CI_PENDING` for Sibyl integration.
 
 ## Existing Engram baseline
 - Node.js 22
@@ -46,21 +46,31 @@ npm install
 python -m pip install -r packages/sibyl/requirements.txt
 npm run build
 npm run test:sibyl
+npm run demo:sibyl:seed
+# process exits
+npm run demo:sibyl:recall
+npm run demo:sibyl:no-memory-control
+npm run test:sibyl:deletion
 ```
 
-`test:sibyl` exercises a Run A -> fresh store/runtime Run B recall path against a shared Sibyl DB and separately checks fail-closed behavior when the configured Sibyl Python runtime is absent.
+`test:sibyl` is an explicit optional-integration command. The ordinary `test:all` suite skips this external-SDK test unless `ENGRAM_SIBYL_TEST_REQUIRED=1`, so canonical Engram development does not silently acquire a Python dependency. The Sibyl CI job always runs it in required mode.
 
-## CI
-`.github/workflows/sibyl-profile.yml` provisions Node 22 + Python 3.12, installs the pinned Sibyl SDK, builds Engram, and runs `npm run test:sibyl` on pull requests.
+## CI evidence and topology
+The first clean Sibyl profile proof passed in GitHub Actions run `32749722101` at head `630e59d`.
+
+A later generic CI run exposed two integration-hygiene issues (missing optional Python SDK in generic CI and an undeclared server-only package boundary). Both were fixed. Generic Engram CI then passed at head `5908305` in run `32750255631`.
+
+The strengthened Sibyl proof is now a second job inside the canonical `.github/workflows/ci.yml`, rather than a standalone workflow. It provisions Node 22 + Python 3.12, installs the pinned SDK, runs the Sibyl pressure tests, then executes seed and recall as distinct Node processes, a no-memory control, and a deletion mutation.
 
 ## Toolchain probe gate
 - [x] current Sibyl SDK/package/API verified from first-party docs;
 - [x] local-first configuration path understood;
-- [x] public write/read API can preserve Engram IDs/structured metadata by construction;
-- [x] deletion/unavailable-Sibyl mutation is implementable and encoded as a test;
+- [x] public write/read API preserves Engram IDs/structured metadata in the observed baseline test;
+- [x] deletion/unavailable-Sibyl mutation is implementable and baseline-tested;
 - [x] no Sibyl secret is required for the local-first core path;
-- [ ] golden integration passes in clean CI;
-- [ ] fresh-session behavior promoted from test design to observed CI evidence;
+- [x] baseline golden Sibyl integration passed in clean CI;
+- [x] canonical Engram suite passed after integration-hygiene fixes;
+- [ ] strengthened stale/tamper + separate-Node-process pressure job passes on the current head;
 - [ ] SDK/version truth revalidated at Sep 1.
 
-Do not promote the EBI state to `READY_TO_BUILD` until the clean CI run passes and its evidence is recorded.
+Do not promote the EBI state beyond the evidence actually recorded for the current head.
