@@ -1,7 +1,12 @@
 import { EngramRuntime } from "../packages/runtime/src/runtime.js";
 import { DEFAULT_RUNTIME_POLICIES } from "../packages/runtime/src/defaults.js";
 import { SibylRuntimeStore } from "../packages/sibyl/src/runtime-store.js";
-import { decideProviderEngagement, type ProviderContinuityContext, type ProviderOffer } from "../packages/scenarios/provider-continuity/src/index.js";
+import {
+  decideProviderEngagement,
+  executeProviderEngagement,
+  type ProviderContinuityContext,
+  type ProviderOffer,
+} from "../packages/scenarios/provider-continuity/src/index.js";
 
 const command = process.argv[2];
 const offers: ProviderOffer[] = [
@@ -18,11 +23,11 @@ const baseContext: ProviderContinuityContext = {
   environmentVersion: "provider-market-v1",
 };
 
-function emit(value: unknown) {
+function emit(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
-async function recordBreach(runtime: EngramRuntime, attempt: number) {
+async function recordBreach(runtime: EngramRuntime, attempt: number): Promise<string> {
   const run = await runtime.startExecution({
     agentId: "requester-agent",
     workflowType: "agent_provider_selection",
@@ -36,6 +41,7 @@ async function recordBreach(runtime: EngramRuntime, attempt: number) {
     type: "PROVIDER_SLA_BREACH",
     payload: { providerId: "atlas", taskType: "data_fetch", latencySeconds: 55 + attempt },
     evidenceState: "OBSERVED",
+    provenance: [{ source: "provider-execution", attempt }],
   });
   await runtime.complete({
     executionId: run.executionId,
@@ -48,8 +54,10 @@ async function recordBreach(runtime: EngramRuntime, attempt: number) {
   return run.executionId;
 }
 
-async function seed() {
-  const runtime = new EngramRuntime(new SibylRuntimeStore(), DEFAULT_RUNTIME_POLICIES);
+async function seed(): Promise<void> {
+  const store = new SibylRuntimeStore();
+  const runtime = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
+  const backend = await store.ping();
   const first = await recordBreach(runtime, 1);
   const second = await recordBreach(runtime, 2);
   const admitting = await runtime.startExecution({
@@ -64,6 +72,7 @@ async function seed() {
     executionId: admitting.executionId,
     status: "PARTIAL",
     summary: "Two requester-owned Atlas executions breached the urgent data-fetch SLA.",
+    result: { providerId: "atlas", repeatedPattern: true },
     evidenceState: "OBSERVED",
     admissionSignals: [{
       kind: "REPEATED_PATTERN",
@@ -81,11 +90,22 @@ async function seed() {
       },
     }],
   });
-  emit({ phase: "provider-seed", sourceExecutions: [first, second, admitting.executionId], admittedMemoryIds: completed.admittedMemories.map((m) => m.id) });
+  emit({
+    phase: "provider-history",
+    backend: "sibyl-memory-client",
+    sibyl: backend,
+    historicalExecutionIds: [first, second],
+    admittingExecutionId: admitting.executionId,
+    admittedMemoryIds: completed.admittedMemories.map((memory) => memory.id),
+    relationshipPosture: "CONTEXT_GUARDED",
+    instruction: "Terminate this process, then run urgent/routine commands against the same Sibyl DB and tenant.",
+  });
 }
 
-async function decide(urgency: "URGENT" | "ROUTINE") {
-  const runtime = new EngramRuntime(new SibylRuntimeStore(), DEFAULT_RUNTIME_POLICIES);
+async function decide(urgency: "URGENT" | "ROUTINE"): Promise<void> {
+  const store = new SibylRuntimeStore();
+  const runtime = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
+  const backend = await store.ping();
   const run = await runtime.startExecution({
     agentId: "requester-agent",
     workflowType: "agent_provider_selection",
@@ -94,7 +114,10 @@ async function decide(urgency: "URGENT" | "ROUTINE") {
     constraints: { budgetUsd: 20, maxLatencySeconds: 30 },
     environmentVersion: "provider-market-v1",
   });
-  const recalled = await runtime.recall({ executionId: run.executionId, query: "Atlas repeated data fetch SLA breaches relationship" });
+  const recalled = await runtime.recall({
+    executionId: run.executionId,
+    query: "Atlas repeated data fetch SLA breaches experiential relationship",
+  });
   const context: ProviderContinuityContext = { ...baseContext, urgency };
   const control = decideProviderEngagement({ context, offers, memories: [] });
   const treatment = decideProviderEngagement({
@@ -102,13 +125,51 @@ async function decide(urgency: "URGENT" | "ROUTINE") {
     offers,
     memories: recalled.candidates.map((candidate) => ({ memory: candidate.memory, finalScore: candidate.score })),
   });
+
+  if (treatment.memoryRefs.length) {
+    await runtime.recordDecision({
+      executionId: run.executionId,
+      decisionType: "PROVIDER_ENGAGEMENT",
+      selectedAction: { providerId: treatment.providerId, terms: treatment.terms },
+      alternatives: [{ providerId: control.providerId, terms: control.terms }],
+      reasoningSummary: treatment.reason,
+      influences: [{
+        memoryId: treatment.memoryRefs[0]!,
+        retrievalId: recalled.recall.id,
+        influenceType: treatment.providerId !== control.providerId ? "CHANGED_ACTION" : "CONSTRAINED_ACTION",
+        summary: urgency === "URGENT"
+          ? "Accumulated provider experience changed urgent delegation from Atlas to Beacon."
+          : "Accumulated provider experience constrained Atlas prepayment and verification authority.",
+        counterfactual: treatment.providerId !== control.providerId ? {
+          action: { providerId: control.providerId, terms: control.terms },
+          source: "APPLICATION_DECLARED",
+          evidenceState: "OBSERVED",
+          explanation: "Without relationship memory, the cheapest eligible provider is Atlas.",
+        } : undefined,
+      }],
+    });
+  }
+
   emit({
-    phase: urgency === "URGENT" ? "provider-urgent-fresh-session" : "provider-routine-fresh-session",
-    recalledMemoryIds: recalled.candidates.map((c) => c.memory.id),
-    control,
-    memoryConditioned: treatment,
+    phase: urgency === "URGENT" ? "provider-fresh-urgent" : "provider-fresh-routine",
+    backend: "sibyl-memory-client",
+    sibyl: backend,
+    executionId: run.executionId,
+    retrievalId: recalled.recall.id,
+    recalledMemoryIds: recalled.candidates.map((candidate) => candidate.memory.id),
+    baseline: {
+      providerId: control.providerId,
+      terms: control.terms,
+      result: executeProviderEngagement(control, context),
+    },
+    memoryConditioned: {
+      providerId: treatment.providerId,
+      terms: treatment.terms,
+      result: executeProviderEngagement(treatment, context),
+    },
     providerChanged: control.providerId !== treatment.providerId,
     authorityChanged: JSON.stringify(control.terms) !== JSON.stringify(treatment.terms),
+    trace: await runtime.trace(run.executionId),
   });
 }
 
