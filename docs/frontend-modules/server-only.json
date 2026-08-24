@@ -16,6 +16,7 @@
     { "modulePath": "packages/scenarios", "reason": "Internal experiment workloads and application fixtures, not product UI APIs." },
     { "modulePath": "packages/sibyl", "reason": "Hackathon runtime-store adapter launches the server-side Sibyl Python SDK and owns local durable memory access; browsers consume resulting traces through Engram API surfaces." },
     { "modulePath": "packages/vertex", "reason": "Google Vertex AI embedding client uses Application Default Credentials and must remain server-side." },
+    { "modulePath": "packages/virtuals-acp", "reason": "Virtuals ACP adapter handles agent-commerce job evidence and eventually credentialed CLI/testnet interactions; frontend must consume normalized evidence through Engram API surfaces." },
     { "modulePath": "services/runtime", "reason": "Server runtime construction and infrastructure wiring." },
     { "modulePath": "services/verification", "reason": "Credentialed live-verification and evidence generation service." }
   ]
