@@ -60,8 +60,12 @@ export function acpHistoryToExecutionEvidence(
     failureType = "UNKNOWN_FAILURE";
   }
 
+  // Latency is a secondary classification. It may classify an otherwise
+  // successful/in-flight job as an SLA breach, but must not erase a stronger
+  // terminal cause such as ACP rejection or expiry.
   if (
-    context.expectedLatencySeconds !== undefined
+    failureType === undefined
+    && context.expectedLatencySeconds !== undefined
     && observedLatencySeconds !== undefined
     && observedLatencySeconds > context.expectedLatencySeconds
   ) {
