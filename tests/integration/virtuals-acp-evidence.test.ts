@@ -86,6 +86,9 @@ describe("Virtuals ACP evidence adapter", () => {
       providerId: "0xProviderFixture",
       taskType: "data_fetch",
       urgency: "ROUTINE",
+      expectedLatencySeconds: 30,
+      startedAt: new Date("2026-08-28T12:00:00.000Z"),
+      completedAt: new Date("2026-08-28T12:02:00.000Z"),
     });
     const expired = acpHistoryToExecutionEvidence({
       jobId: "job-expired",
@@ -97,6 +100,9 @@ describe("Virtuals ACP evidence adapter", () => {
       providerId: "0xProviderFixture",
       taskType: "data_fetch",
       urgency: "ROUTINE",
+      expectedLatencySeconds: 30,
+      startedAt: new Date("2026-08-28T12:00:00.000Z"),
+      completedAt: new Date("2026-08-28T12:02:00.000Z"),
     });
 
     expect(rejected.failureType).toBe("JOB_REJECTED");
