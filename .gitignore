@@ -18,6 +18,7 @@ coverage/
 # Generated external evidence (uploaded as workflow artifacts, not committed)
 evidence/live/
 evidence/aws/
+artifacts/sibyl-evidence/
 
 # Logs and editor/OS noise
 *.log
