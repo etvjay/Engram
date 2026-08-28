@@ -1,6 +1,6 @@
 # Virtuals ACP evidence adapter
 
-Status: `IMPLEMENTED / LIVE_ACP_UNVERIFIED`
+Status: `IMPLEMENTED / LOCAL_CONFORMANCE_PASS_PENDING_CI / LIVE_ACP_UNVERIFIED`
 
 This server-only package normalizes machine-readable output from the current Virtuals `@virtuals-protocol/acp-cli` into Engram execution evidence.
 
@@ -29,6 +29,8 @@ Testnet is selected globally:
 export IS_TESTNET=true
 ```
 
+The deterministic conformance fixture uses Base Sepolia chain ID `84532`, which is exposed by the current Virtuals CLI chain configuration. The fixture is synthetic and can never promote the partner evidence state above local conformance.
+
 ## Example
 
 ```ts
@@ -52,8 +54,36 @@ await runtime.observe({
 });
 ```
 
+## Local conformance pressure
+
+Run:
+
+```bash
+npm run test:virtuals
+```
+
+The suite checks:
+
+- current v2 history shape (`jobId`, `chainId`, `protocol`, `status`, `entryCount`, `entries`);
+- no invented failure on an on-time completed job;
+- `SLA_BREACH` only when explicit expected latency and observed timestamps justify it;
+- `rejected` and `expired` remain distinct failure classes;
+- malformed or invalid history fails closed.
+
+Fixture:
+
+```text
+tests/fixtures/virtuals-acp/completed-job-history.json
+```
+
+Test:
+
+```text
+tests/integration/virtuals-acp-evidence.test.ts
+```
+
 ## Evidence boundary
-- ACP job history is treated as `OBSERVED` external-system evidence.
+- ACP job history is treated as `OBSERVED` external-system evidence only when it comes from the live ACP command. A repository fixture is `SIMULATED_PASS`/local conformance evidence, never live partner evidence.
 - SLA breach classification requires caller-supplied expected latency plus observed start/completion timestamps; the adapter does not invent SLA expectations from provider reputation.
 - `rejected` and `expired` jobs are preserved as distinct failure classes.
 - Raw parsed history is retained in the normalized evidence object for audit/debugging, but the Engram observation records only bounded fields plus a provenance command reference.
