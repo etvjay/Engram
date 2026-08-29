@@ -7,23 +7,24 @@ Allowed states:
 
 | Claim / gate | State | Evidence | Negative mutation | Notes |
 |---|---|---|---|---|
-| Sibyl persists decision-critical memory | LOCAL_PASS | GitHub Actions run `33221823993`, job `99017280805`, branch head `8f616545`: SDK 0.6.1 installed; route/provider/conflict memories persisted through Sibyl | missing Sibyl runtime | Pre-build-window evidence; must be re-run during official window |
-| Fresh session/process recalls prior memory | LOCAL_PASS | run `33221823993`: separate seed and recall processes; route memory plus provider relationship memory were recalled in later processes; conflict test creates a fresh `SibylRuntimeStore` before retrieving both contradictory memories | terminate source process / unavailable Sibyl | Stronger than fresh-object-only proof |
-| Recalled memory changes action | LOCAL_PASS | run `33221823993`: route `A-B-C -> A-B-D`; urgent provider `atlas -> beacon`; explicit `CHANGED_ACTION` traces | no-memory control | Paired behavioral deltas, not retrieval-only |
-| Recalled memory constrains authority without global blacklist | LOCAL_PASS | run `33221823993`, fresh routine provider process: Atlas remains selected while prepay falls `5000 -> 1000` bps and milestone verification becomes required; trace records `CONSTRAINED_ACTION` | routine-context control | Demonstrates contextual relationship posture rather than global reputation |
-| Multi-execution experience becomes bounded relationship memory | LOCAL_PASS | run `33221823993`: two historical Atlas breach executions plus admitting execution produced `CONTEXT_GUARDED` relationship memory | single-failure fixture / cross-task fixture | Pure scenario tests also require >=2 source executions and task-type applicability |
-| Urgent provider experience changes outcome | LOCAL_PASS | run `33221823993`: no-memory Atlas path deterministically returns `SLA_BREACH`; memory-conditioned Beacon path returns `SUCCESS` | no-memory provider control | Application fixture, not a claim about a live provider network |
-| Deleting/unavailable Sibyl breaks/degrades core function | LOCAL_PASS | run `33221823993`: deletion CLI emitted `degraded: true`, `fallbackAvailable: false`, missing-runtime ENOENT | remove/disable Sibyl runtime | VETO; mutation harness fails if Sibyl unexpectedly stays available |
-| Engram provenance remains reconstructable | LOCAL_PASS | run `33221823993`: recall IDs, memory IDs, `engram.memory-state/v1` digests, counterfactuals, accepted influence and evaluation events appear in route/provider traces | post-recall memory tamper | Sibyl backend preserves trace material needed for influence validation |
-| Expired Sibyl memory is retrieved but blocked before exposure | LOCAL_PASS | run `33221823993`, `npm run test:sibyl` | expired memory fixture | Demonstrates retrieval != legitimate influence |
-| Post-recall memory tamper is rejected | LOCAL_PASS | run `33221823993`, `npm run test:sibyl` | overwrite memory after digest exposure | Protects recall-to-decision state integrity |
-| Conflicting memory remains non-silently adjudicated through Sibyl store | LOCAL_PASS | run `33221823993`, job `99017280805`: `sibyl-competing-memories.test.ts` persisted contradictory memories, retrieved both through a fresh Sibyl-backed runtime, rejected influence with `UNRESOLVED_MEMORY_CONTRADICTION`, then allowed the resolved side only after explicit `SUPERSEDES` evidence | unresolved `CONTRADICTS` pair | Proves Sibyl persistence/retrieval does not silently turn ranking into adjudication |
-| Expanded Sibyl pressure suite | LOCAL_PASS | run `33221823993`, job `99017280805`: `3` test files and `7/7` tests passed | expiry, tamper, contradiction, deletion, single-failure/cross-task controls | Provider tests retain bounded 15s timeout; contradiction integration test uses bounded 20s timeout because bridge-backed round trips are multi-process |
-| Canonical Engram suite remains green with evaluated Sibyl profile | LOCAL_PASS | run `33221823993`, check job `99017280705`: `npm run check` passed; SAM build run `33221823973` also passed | canonical test suite | Same branch head `8f616545a856bb9ce3ab95b14f06af0306417d4e` |
-| Root README exposes critical write/read/influence call map | LOCAL_PASS | root README on `hackathon/sibyl-ebi` opens with judge-facing call map for Sibyl wiring, write/read, influence, provider scenario, process-boundary demo and deletion path | cold reviewer navigation | Human under-two-minute timing remains to be performed; therefore not `PUBLIC_EVALUATOR_PASS` |
+| Sibyl persists decision-critical memory | LOCAL_PASS | GitHub Actions run `33232373531`, job `99047294445`, branch head `afb3ac3751cd0c9a736266f199d4f87682251913`: SDK 0.6.1 installed; route/provider/conflict memories persisted through Sibyl | missing Sibyl runtime | Pre-build-window evidence; must be re-run during official window |
+| Fresh session/process recalls prior memory | LOCAL_PASS | run `33232373531`: separate seed and recall processes; route memory plus provider relationship memory recalled in later processes; conflict test creates a fresh `SibylRuntimeStore` before retrieving both contradictory memories | terminate source process / unavailable Sibyl | Stronger than fresh-object-only proof |
+| Recalled memory changes action | LOCAL_PASS | run `33232373531`: route `A-B-C -> A-B-D`; urgent provider `atlas -> beacon`; explicit `CHANGED_ACTION` traces | no-memory control | Paired behavioral deltas, not retrieval-only |
+| Recalled memory constrains authority without global blacklist | LOCAL_PASS | run `33232373531`, fresh routine provider process: Atlas remains selected while prepay falls `5000 -> 1000` bps and milestone verification becomes required; trace records `CONSTRAINED_ACTION` | routine-context control | Demonstrates contextual relationship posture rather than global reputation |
+| Multi-execution experience becomes bounded relationship memory | LOCAL_PASS | run `33232373531`: two historical Atlas breach executions plus admitting execution produced `CONTEXT_GUARDED` relationship memory | single-failure fixture / cross-task fixture | Pure scenario tests also require >=2 source executions and task-type applicability |
+| Urgent provider experience changes outcome | LOCAL_PASS | run `33232373531`: no-memory Atlas path deterministically returns `SLA_BREACH`; memory-conditioned Beacon path returns `SUCCESS` | no-memory provider control | Application fixture, not a claim about a live provider network |
+| Deleting/unavailable Sibyl breaks/degrades core function | LOCAL_PASS | run `33232373531`: deletion CLI emitted degradation with no fallback | remove/disable Sibyl runtime | VETO; mutation harness fails if Sibyl unexpectedly stays available |
+| Engram provenance remains reconstructable | LOCAL_PASS | run `33232373531`: recall IDs, memory IDs, `engram.memory-state/v1` digests, counterfactuals, accepted influence and evaluation events appear in route/provider traces | post-recall memory tamper | Sibyl backend preserves trace material needed for influence validation |
+| Expired Sibyl memory is retrieved but blocked before exposure | LOCAL_PASS | run `33232373531`, `npm run test:sibyl` | expired memory fixture | Demonstrates retrieval != legitimate influence |
+| Post-recall memory tamper is rejected | LOCAL_PASS | run `33232373531`, `npm run test:sibyl` | overwrite memory after digest exposure | Protects recall-to-decision state integrity |
+| Conflicting memory remains non-silently adjudicated through Sibyl store | LOCAL_PASS | run `33232373531`, job `99047294445`: contradictory memories remain recall-visible, unresolved influence is rejected, explicit `SUPERSEDES` resolves the relevant side | unresolved `CONTRADICTS` pair | Proves Sibyl persistence/retrieval does not silently turn ranking into adjudication |
+| Expanded Sibyl pressure suite | LOCAL_PASS | run `33232373531`, job `99047294445`: `3` test files / `7` tests passed, followed by route/provider/deletion process-boundary proof | expiry, tamper, contradiction, deletion, single-failure/cross-task controls | Same evaluated profile remains repeatable on clean hosted runners |
+| Self-verifying evidence capture path | LOCAL_PASS | run `33232373531`, job `99047294445`: `Smoke exact evidence capture path` and `Verify evidence manifest exists` both passed on head `afb3ac37` | dirty source / unexpected untracked file; failed precursor run `33232299952` | Capture v2 records git/source state, environment versions, dependency digests, output SHA-256 values and final Sibyl DB digest |
+| Canonical Engram suite remains green with evaluated Sibyl profile | LOCAL_PASS | run `33232373531`, check job `99047294544`: `npm run check` passed; SAM build run `33232373540` also passed | canonical test suite | Same branch head `afb3ac3751cd0c9a736266f199d4f87682251913` |
+| Root README exposes critical write/read/influence/conflict/deletion/evidence call map | LOCAL_PASS | root README on `hackathon/sibyl-ebi` exposes all critical judged paths plus one-command capture | cold reviewer navigation | Human under-two-minute timing remains to be performed; therefore not `PUBLIC_EVALUATOR_PASS` |
 | Hackathon-window rerun of core proof | UNVERIFIED | — | clean clone + fresh DB | Pre-window proof cannot substitute for final event-window evidence |
 | Base integration does real product work | UNVERIFIED | — | remove Base action | optional; do not add decoratively |
-| Virtuals integration does real product work | UNVERIFIED | adapter/conformance/live-ingest path implemented; no authenticated ACP job yet | remove Virtuals interaction | optional; partner multiplier remains unclaimed |
+| Virtuals integration does real product work | UNVERIFIED | adapter/conformance/live-ingest path implemented; local conformance passed; no authenticated ACP job yet | remove Virtuals interaction | optional; partner multiplier remains unclaimed |
 
 ## Current flagship interpretation
 The strongest current memory claim is not `the agent remembers Atlas is bad`.
@@ -41,11 +42,17 @@ The adversarial corollary is equally important:
 ## Evidence-history note
 Run `32753747711` remains an earlier pre-window baseline for the original six-test profile.
 
-The current stronger pre-window baseline is branch head `8f616545a856bb9ce3ab95b14f06af0306417d4e`:
-- Engram CI `33221823993`: SUCCESS
-- Sibyl profile job `99017280805`: SUCCESS, 3 files / 7 tests
-- canonical check job `99017280705`: SUCCESS
-- Engram SAM Build `33221823973`: SUCCESS
+Head `8f616545...` / run `33221823993` added the Sibyl-backed contradiction gate and passed 7/7 Sibyl tests.
+
+The first exact capture-smoke run on head `45806957...`, CI `33232299952`, intentionally surfaced an evidence-harness failure after every product/Sibyl phase passed: `npm install` generated an untracked `package-lock.json`, which the first strict source-tree guard treated as unexpected dirtiness. That run is retained as a failed harness attempt, not a product failure.
+
+The current strongest pre-window engineering baseline is branch head `afb3ac3751cd0c9a736266f199d4f87682251913`:
+- Engram CI `33232373531`: SUCCESS
+- Sibyl profile job `99047294445`: SUCCESS, including exact evidence-capture smoke and manifest check
+- canonical check job `99047294544`: SUCCESS
+- Engram SAM Build `33232373540`: SUCCESS
+
+The corrected capture classifies only the known generated untracked `package-lock.json` as setup residue, records and hashes it when present, and continues to veto tracked source drift or unexpected untracked files.
 
 A green run proves only the commit/run it actually executed. Later documentation commits may record that evidence but do not strengthen it.
 
