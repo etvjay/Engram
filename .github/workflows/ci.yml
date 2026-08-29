@@ -43,8 +43,21 @@ jobs:
         run: npm run demo:sibyl:provider:seed
       - name: Fresh urgent provider decision uses relationship memory
         run: npm run demo:sibyl:provider:urgent
-      - name: Fresh routine provider decision narrows authority contextually
+      - name: Fresh routine provider decision emits Base settlement intent
+        env:
+          ENGRAM_BASE_ATLAS_ADDRESS: '0x1111111111111111111111111111111111111111'
+          ENGRAM_BASE_BEACON_ADDRESS: '0x2222222222222222222222222222222222222222'
+          ENGRAM_BASE_INTENT_OUT: /tmp/engram-base-routine-intent.json
         run: npm run demo:sibyl:provider:routine
+      - name: Verify fresh decision Base intent artifact
+        run: >-
+          npx tsx -e "import { readFileSync } from 'node:fs';
+          import { parseSerializedBaseSettlementIntent } from './packages/base-settlement/src/index.ts';
+          const intent = parseSerializedBaseSettlementIntent(JSON.parse(readFileSync('/tmp/engram-base-routine-intent.json','utf8')));
+          if (intent.providerId !== 'atlas') throw new Error('unexpected provider');
+          if (intent.terms.authorizedPrepayAtomic !== 800000n) throw new Error('unexpected prepay');
+          if (!intent.terms.requireMilestoneVerification) throw new Error('milestone verification not required');
+          if (!intent.provenance.retrievalId) throw new Error('missing retrieval provenance');"
       - name: Remove Sibyl runtime and prove fail-closed degradation
         run: npm run test:sibyl:deletion
       - name: Smoke exact evidence capture path
