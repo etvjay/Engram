@@ -1,8 +1,9 @@
 {
   "schemaVersion": "engram.server-only-module-registry/v1",
-  "updatedAt": "2026-08-24",
+  "updatedAt": "2026-08-29",
   "modules": [
     { "modulePath": "packages/adapters", "reason": "Framework telemetry integration; frontend consumes resulting execution evidence through API surfaces." },
+    { "modulePath": "packages/base-settlement", "reason": "Hackathon Base settlement-authority adapter derives decision-linked USDC intents and will own credentialed/testnet settlement verification; signer material must never enter browser code." },
     { "modulePath": "packages/bedrock", "reason": "AWS Bedrock embedding client requires server-side credentials." },
     { "modulePath": "packages/cockroach-mcp", "reason": "Cockroach Managed MCP credentials and database inspection remain server-side." },
     { "modulePath": "packages/cockroach", "reason": "Canonical storage/database implementation; browsers must never connect directly to CockroachDB." },
