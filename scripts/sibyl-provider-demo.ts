@@ -1,6 +1,12 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { EngramRuntime } from "../packages/runtime/src/runtime.js";
 import { DEFAULT_RUNTIME_POLICIES } from "../packages/runtime/src/defaults.js";
 import { SibylRuntimeStore } from "../packages/sibyl/src/runtime-store.js";
+import {
+  deriveBaseSettlementIntent,
+  serializeBaseSettlementIntent,
+} from "../packages/base-settlement/src/index.js";
 import {
   decideProviderEngagement,
   executeProviderEngagement,
@@ -102,6 +108,34 @@ async function seed(): Promise<void> {
   });
 }
 
+async function maybeWriteBaseIntent(input: {
+  executionId: string;
+  retrievalId: string;
+  treatment: ReturnType<typeof decideProviderEngagement>;
+}): Promise<{ intentPath: string; intent: ReturnType<typeof serializeBaseSettlementIntent> } | undefined> {
+  const out = process.env.ENGRAM_BASE_INTENT_OUT;
+  if (!out) return undefined;
+
+  const atlas = process.env.ENGRAM_BASE_ATLAS_ADDRESS;
+  const beacon = process.env.ENGRAM_BASE_BEACON_ADDRESS;
+  if (!atlas || !beacon) {
+    throw new Error("BASE_INTENT_REQUIRES_ENGRAM_BASE_ATLAS_ADDRESS_AND_ENGRAM_BASE_BEACON_ADDRESS");
+  }
+
+  const serialized = serializeBaseSettlementIntent(deriveBaseSettlementIntent({
+    decision: input.treatment,
+    addresses: { atlas, beacon },
+    provenance: {
+      executionId: input.executionId,
+      retrievalId: input.retrievalId,
+    },
+  }));
+  const intentPath = resolve(out);
+  await mkdir(dirname(intentPath), { recursive: true });
+  await writeFile(intentPath, `${JSON.stringify(serialized, null, 2)}\n`, "utf8");
+  return { intentPath, intent: serialized };
+}
+
 async function decide(urgency: "URGENT" | "ROUTINE"): Promise<void> {
   const store = new SibylRuntimeStore();
   const runtime = new EngramRuntime(store, DEFAULT_RUNTIME_POLICIES);
@@ -150,6 +184,12 @@ async function decide(urgency: "URGENT" | "ROUTINE"): Promise<void> {
     });
   }
 
+  const baseSettlement = await maybeWriteBaseIntent({
+    executionId: run.executionId,
+    retrievalId: recalled.recall.id,
+    treatment,
+  });
+
   emit({
     phase: urgency === "URGENT" ? "provider-fresh-urgent" : "provider-fresh-routine",
     backend: "sibyl-memory-client",
@@ -169,6 +209,7 @@ async function decide(urgency: "URGENT" | "ROUTINE"): Promise<void> {
     },
     providerChanged: control.providerId !== treatment.providerId,
     authorityChanged: JSON.stringify(control.terms) !== JSON.stringify(treatment.terms),
+    baseSettlement,
     trace: await runtime.trace(run.executionId),
   });
 }
