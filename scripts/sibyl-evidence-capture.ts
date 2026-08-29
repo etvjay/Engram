@@ -54,13 +54,25 @@ const head = gitHead();
 const stamp = safeStamp(capturedAt);
 const sourceTreeStatusResult = commandStdoutAllowEmpty("git", ["status", "--porcelain"]);
 const sourceTreeStatus = sourceTreeStatusResult ?? "unknown";
-const sourceTreeClean = sourceTreeStatusResult !== null && sourceTreeStatusResult.length === 0;
+const sourceTreeStatusLines = sourceTreeStatusResult === null || sourceTreeStatusResult.length === 0
+  ? []
+  : sourceTreeStatusResult.split("\n").map((line) => line.trimEnd()).filter(Boolean);
+
+// `npm install` currently creates this untracked file because the repository
+// does not commit a package lock. It is setup residue, not source drift. It is
+// still hashed into the evidence manifest if present.
+const allowedGeneratedStatusLines = new Set(["?? package-lock.json"]);
+const allowedGeneratedStatus = sourceTreeStatusLines.filter((line) => allowedGeneratedStatusLines.has(line));
+const unexpectedSourceTreeStatus = sourceTreeStatusLines.filter((line) => !allowedGeneratedStatusLines.has(line));
+const submissionSourceClean = sourceTreeStatusResult !== null && unexpectedSourceTreeStatus.length === 0;
+const literallyClean = sourceTreeStatusResult !== null && sourceTreeStatusLines.length === 0;
 const allowDirty = process.env.ENGRAM_EVIDENCE_ALLOW_DIRTY === "1";
 
-if (!sourceTreeClean && !allowDirty) {
+if (!submissionSourceClean && !allowDirty) {
   throw new Error(
-    `EVIDENCE_SOURCE_TREE_DIRTY: commit-stamped evidence requires a clean working tree. `
-    + `Set ENGRAM_EVIDENCE_ALLOW_DIRTY=1 only for non-submission diagnostics. status=${JSON.stringify(sourceTreeStatus)}`,
+    `EVIDENCE_SOURCE_TREE_DIRTY: commit-stamped evidence requires no tracked source drift or unexpected untracked files. `
+    + `Set ENGRAM_EVIDENCE_ALLOW_DIRTY=1 only for non-submission diagnostics. `
+    + `unexpected=${JSON.stringify(unexpectedSourceTreeStatus)}`,
   );
 }
 
@@ -126,6 +138,7 @@ for (const step of steps) {
   }
 }
 
+const packageJsonPath = resolve(process.cwd(), "package.json");
 const packageLockPath = resolve(process.cwd(), "package-lock.json");
 const sibylRequirementsPath = resolve(process.cwd(), "packages/sibyl/requirements.txt");
 const dbSha256 = await sha256File(dbPath);
@@ -135,8 +148,14 @@ const manifest = {
   capturedAt: capturedAt.toISOString(),
   repository: commandOutput("git", ["remote", "get-url", "origin"]),
   gitHead: head,
-  sourceTreeClean,
-  sourceTreeStatus,
+  sourceTree: {
+    submissionSourceClean,
+    literallyClean,
+    rawStatus: sourceTreeStatus,
+    allowedGeneratedStatus,
+    unexpectedStatus: unexpectedSourceTreeStatus,
+    dirtyOverrideUsed: allowDirty && !submissionSourceClean,
+  },
   tenant,
   environment: {
     platform: process.platform,
@@ -150,14 +169,15 @@ const manifest = {
     ]),
   },
   dependencyDigests: {
-    packageLockSha256: await sha256File(packageLockPath),
+    packageJsonSha256: await sha256File(packageJsonPath),
+    generatedPackageLockSha256: await sha256File(packageLockPath),
     sibylRequirementsSha256: await sha256File(sibylRequirementsPath),
   },
   dbFile: "sibyl-evidence.db",
   dbSha256,
   status: failed ? "FAILED" : "LOCAL_PASS",
   evidenceBoundary: "This capture is local/CI evidence unless the surrounding run is itself an eligible public evaluator or live partner execution.",
-  integrityNote: "SHA-256 values bind retained stdout/stderr, dependency manifests, and the final Sibyl database to this manifest. The manifest itself is the root receipt and should be retained with the artifact.",
+  integrityNote: "SHA-256 values bind retained stdout/stderr, dependency manifests/setup lockfile when present, and the final Sibyl database to this manifest. The manifest itself is the root receipt and should be retained with the artifact.",
   steps: receipts,
 };
 
