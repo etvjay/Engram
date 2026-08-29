@@ -21,10 +21,10 @@ execution evidence
   -> Sibyl memory
   -> fresh Engram recall
   -> Engram provider decision
-  -> engam.base-settlement-intent/v1
+  -> engram.base-settlement-intent/v1
   -> explicit wallet execution on Base Sepolia
   -> receipt
-  -> USDC Transfer matches recipient + amount
+  -> chain + payer + USDC recipient + amount match
   -> Base settlement evidence
 ```
 
@@ -38,7 +38,7 @@ A transaction hash without the preceding memory/decision linkage does not qualif
 4. Form the relationship memory through normal Engram admission.
 5. Terminate the originating process.
 6. In a fresh process, recall the relationship memory and record the provider decision.
-7. Derive a Base settlement intent containing:
+7. Derive and serialize a Base settlement intent containing:
    - execution ID;
    - retrieval ID;
    - decision ID;
@@ -48,24 +48,29 @@ A transaction hash without the preceding memory/decision linkage does not qualif
    - prepay basis points;
    - exact USDC atomic amount;
    - no-memory counterfactual.
-8. Review the intent before signing anything.
-9. Execute exactly that authorized USDC transfer with the selected testnet wallet/signer.
-10. Retain the transaction hash. Never retain/export the private key in Engram evidence.
-11. Verify independently:
+8. Review the serialized intent before signing anything.
+9. Record the requester/payer wallet address expected to execute the settlement.
+10. Execute exactly that authorized USDC transfer with the selected testnet wallet/signer.
+11. Retain the transaction hash. Never retain/export the private key in Engram evidence.
+12. Verify independently:
 
 ```bash
 ENGRAM_BASE_RPC_URL='<BASE_SEPOLIA_RPC>' \
   npm run base:settlement:verify -- \
   --intent artifacts/base/<intent>.json \
-  --tx-hash <0x...>
+  --tx-hash <0x...> \
+  --payer <REQUESTER_WALLET>
 ```
 
-12. Verification must fail unless the receipt:
+13. The verifier independently calls `eth_chainId` and must observe `84532` before accepting the receipt.
+14. Verification must fail unless the receipt:
+   - was fetched from Base Sepolia;
    - succeeded;
    - contains a Circle Base Sepolia USDC `Transfer`;
+   - originates from the expected requester/payer when payer binding is supplied;
    - transfers to the exact decision-derived recipient;
    - transfers the exact decision-derived amount.
-13. Save verifier stdout, transaction hash, explorer link, receipt, intent, and Engram trace in the final evidence bundle.
+15. Save verifier stdout, transaction hash, explorer link, receipt, serialized intent, payer address, and Engram trace in the final evidence bundle.
 
 ## Flagship expected deltas
 
@@ -97,6 +102,9 @@ The routine case is the stronger Base authority proof because memory changes how
 ## Negative pressure
 
 A live claim is invalid if any of these are true:
+- serialized intent is malformed or internally inconsistent;
+- RPC reports a chain other than `84532`;
+- payer differs from the expected requester wallet when payer binding is claimed;
 - recipient differs from the settlement intent;
 - amount differs from the settlement intent;
 - wrong token contract;
