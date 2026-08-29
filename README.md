@@ -14,7 +14,7 @@ The `hackathon/sibyl-ebi` branch contains a dedicated evaluated profile for the 
 
 The hackathon profile is designed around the deletion test: remove Sibyl and the cross-session memory required to reproduce the claimed behavior disappears.
 
-### Judge call map — write → read → influence → deletion
+### Judge call map — write → read → influence → conflict → deletion
 
 | Judge question | Critical path |
 |---|---|
@@ -22,10 +22,36 @@ The hackathon profile is designed around the deletion test: remove Sibyl and the
 | Where is decision-critical memory written? | `SibylRuntimeStore.persistMemory(...)` → bridge `put` → Sibyl WARM entity `operational_memory`. |
 | Where is it read in a later session? | `SibylRuntimeStore.searchMemory(...)` → bridge `search_memories`; Engram Runtime then applies recall eligibility before exposure. |
 | How is recall distinguished from influence? | `packages/runtime/src/runtime.ts`: `recall(...)` creates a memory-state digest; `recordDecision(...)` validates retrieval provenance and influence policy before recording `CHANGED_ACTION` / `CONSTRAINED_ACTION`. |
+| What prevents search rank from silently resolving contradictory memories? | `tests/integration/sibyl-competing-memories.test.ts`: both contradictory memories remain recall-visible through Sibyl; unresolved influence is rejected until explicit `SUPERSEDES` evidence resolves the relevant side. |
 | Where is the flagship relationship-memory policy? | `packages/scenarios/provider-continuity/src/index.ts`. |
-| Where is the Sibyl integration pressure test? | `tests/integration/sibyl-memory-loop.test.ts` and `tests/integration/sibyl-provider-continuity.test.ts`. |
+| Where is the Sibyl integration pressure suite? | `tests/integration/sibyl-memory-loop.test.ts`, `tests/integration/sibyl-provider-continuity.test.ts`, and `tests/integration/sibyl-competing-memories.test.ts`. |
 | How do I see process-boundary recall? | `npm run demo:sibyl:provider:seed`, terminate that process, then run `npm run demo:sibyl:provider:urgent` or `npm run demo:sibyl:provider:routine` against the same Sibyl DB/tenant. |
 | How is load-bearing deletion tested? | `npm run test:sibyl:deletion`; it removes the configured Sibyl runtime and must report degradation with no fallback. |
+| How do I reproduce the complete evidence bundle? | After installing the pinned Sibyl dependency, run `npm run evidence:sibyl:capture`. It uses a fresh Sibyl DB/tenant, separate processes for the behavioral phases, and emits a commit/timestamp/version-stamped `manifest.json` with SHA-256 integrity metadata. |
+
+### One-command evidence capture
+
+Install the evaluated Sibyl dependency, then capture the full pre-submission proof:
+
+```bash
+python -m pip install -r packages/sibyl/requirements.txt
+npm run evidence:sibyl:capture
+```
+
+The capture fails on a dirty source tree by default so the manifest's git SHA actually identifies the tested source. For non-submission diagnostics only, `ENGRAM_EVIDENCE_ALLOW_DIRTY=1` may override that guard.
+
+The generated evidence bundle binds:
+
+- exact UTC capture time and git SHA;
+- repository URL and clean-tree state;
+- Node, npm, Python and `sibyl-memory-client` versions;
+- dependency-manifest SHA-256 digests;
+- separate-process route and provider outputs;
+- contradiction, expiry, tamper and deletion pressure results;
+- the final Sibyl SQLite database digest;
+- SHA-256 digests for retained stdout/stderr files.
+
+The manually dispatched `.github/workflows/sibyl-evidence-capture.yml` runs the same command on a clean GitHub-hosted runner and uploads the bundle as an artifact. A successful CI or local capture is still `LOCAL_PASS` unless the surrounding run qualifies for a stronger evidence state.
 
 ### How memory made this possible
 
@@ -178,173 +204,3 @@ DATABASE_URL='postgresql://...' npm run migrate
 ```
 
 Run the credential-gated integration suite:
-
-```bash
-DATABASE_URL='postgresql://...' npm run test:integration
-```
-
-CockroachDB is Engram's canonical operational-memory substrate. Application hot-path reads/writes use the PostgreSQL-compatible connection. CockroachDB Cloud Managed MCP is a separate read/introspection/provenance plane.
-
-Production retrieval is agent-scoped and cosine based. Successful vector ordering does **not** prove C-SPANN index use; the live verifier records the natural `EXPLAIN` plan and promotes that claim only when the optimizer actually selects the expected vector index.
-
-## TypeScript SDK
-
-Inside this monorepo, the canonical SDK barrel is `packages/sdk/src/index.ts` and exposes `Engram`, `httpTransport`, `runtimeTransport`, and the transport types:
-
-```ts
-import { Engram, httpTransport } from "./packages/sdk/src/index.js";
-
-const engram = new Engram(httpTransport({
-  baseUrl: process.env.ENGRAM_API_URL!,
-  apiToken: process.env.ENGRAM_API_TOKEN,
-}));
-
-const execution = await engram.startExecution({
-  agentId: "deployment-agent",
-  workflowType: "deployment",
-  intent: "Deploy safely",
-  context: { service: "api" },
-  constraints: {},
-});
-
-const recall = await execution.recall({ query: "comparable prior failures" });
-
-// The application/agent decides. Engram does not.
-const decision = await application.decide({ memories: recall.candidates });
-
-await execution.recordDecision({
-  decisionType: "DEPLOYMENT_STRATEGY",
-  selectedAction: decision.action,
-  reasoningSummary: decision.summary,
-  influences: decision.memoryInfluences,
-});
-```
-
-The SDK is currently a monorepo package surface; publication as an installable `@engram/sdk` registry package is not claimed yet.
-
-## Python SDK
-
-```python
-from engram import Engram
-
-client = Engram(
-    "https://YOUR_API",
-    api_token="SERVER_SIDE_TOKEN",
-)
-
-execution = client.start_execution(
-    agentId="deployment-agent",
-    workflowType="deployment",
-    intent="Deploy safely",
-    context={"service": "api"},
-    constraints={},
-)
-
-recall = execution.recall("comparable prior failures")
-```
-
-## HTTP API
-
-Core runtime routes:
-
-```text
-POST /v1/executions
-POST /v1/executions/{id}/recall
-POST /v1/executions/{id}/decisions
-POST /v1/executions/{id}/observations
-POST /v1/executions/{id}/complete
-GET  /v1/executions/{id}/trace
-```
-
-Read-focused control-plane routes live under `/v1/control-plane/*`.
-
-`GET /health` and `POST /v1/demo/run` are intentionally public in the MVP. Every other `/v1/*` route requires `Authorization: Bearer $ENGRAM_API_TOKEN` and fails closed if the server token is not configured.
-
-The shared bearer token is an initial deployment guard, **not** production multi-tenant RBAC. Do not place it in a public frontend bundle.
-
-## Engram MCP vs CockroachDB Managed MCP
-
-These are intentionally different surfaces.
-
-**Engram MCP** exposes execution-memory semantics such as execution inspection, memory inspection, recall and influence explanation.
-
-**CockroachDB Cloud Managed MCP** is used as a read/introspection/provenance interface to the underlying CockroachDB data plane.
-
-Managed MCP is not Engram's transactional application database driver.
-
-## AWS deployment
-
-The SAM application packages successfully in CI. Local package proof:
-
-```bash
-npm install
-export PATH="$PWD/node_modules/.bin:$PATH"
-sam build
-```
-
-The repository contains two manual external-proof workflows:
-
-- `.github/workflows/live-verification.yml` — CockroachDB + Bedrock + Managed MCP + natural C-SPANN plan evidence;
-- `.github/workflows/aws-deploy-verification.yml` — SAM deploy plus deployed public/authenticated API exercise.
-
-Neither external workflow should be treated as successful merely because its code exists. See [`docs/deployment.md`](docs/deployment.md) for credentials, promotion rules and evidence artifacts.
-
-## Evidence status
-
-Engram keeps implementation/test evidence separate from live-cloud evidence.
-
-Current high-level boundary:
-
-| Area | Status |
-|---|---|
-| Protocol/runtime causal invariants | TESTED |
-| SDK/API/MCP/adapters | TESTED |
-| Memory policy/evaluation | TESTED |
-| Stronger execution-memory scenarios | TESTED |
-| Sibyl evaluated profile, pre-window | LOCAL_PASS |
-| SAM packaging | TESTED |
-| External demo workload | SIMULATED |
-| CockroachDB Cloud live persistence | UNVERIFIED until credentialed live proof |
-| Bedrock Titan live invocation | UNVERIFIED until credentialed live proof |
-| Managed MCP live provenance | UNVERIFIED until credentialed live proof |
-| Natural C-SPANN index selection | UNVERIFIED until EXPLAIN proves it |
-| AWS Lambda public deployment | UNVERIFIED until deploy-verification succeeds |
-
-The authoritative machine-readable claim ledger is [`evidence/claims.yaml`](evidence/claims.yaml). The Sibyl hackathon evidence ledger is [`hackathon/sibyl/templates/EVIDENCE_LEDGER.md`](hackathon/sibyl/templates/EVIDENCE_LEDGER.md).
-
-## Repository map
-
-```text
-apps/web/                  Control-plane UI
-services/api/              Lambda/HTTP API
-services/runtime/          Runtime composition
-services/demo/             Deterministic causal demo
-services/verification/     Credentialed external verifier
-packages/core/             Protocol primitives
-packages/episode/          ExecutionEpisode schema
-packages/runtime/          Memory runtime
-packages/policy/           Policy contracts/registry
-packages/evaluation/       Memory evaluation semantics
-packages/sdk/              TypeScript SDK
-packages/python/           Python SDK
-packages/mcp-server/       Engram semantic MCP
-packages/adapters/         Framework adapters
-packages/cockroach/        Cockroach persistence/vector runtime
-packages/cockroach-mcp/    Managed MCP client
-packages/bedrock/          Titan embeddings
-packages/sibyl/            Sibyl evaluated runtime-store profile (server-only)
-packages/scenarios/        Domain acceptance workloads
-db/migrations/             Ordered schema migrations
-experiments/               Governed acceptance evidence
-evidence/                  Claim ledger and adversarial reviews
-tests/                     Unit/integration/conformance/E2E proofs
-hackathon/sibyl/            Sibyl EBI truth/evidence wrapper
-```
-
-## What Engram is not
-
-Engram is not generic chat memory, a generic RAG wrapper, an autonomous adjudicator, or a replacement for an agent framework. It does not infer that retrieval equals influence and does not turn a later successful outcome into proof that a memory was beneficial.
-
-## License
-
-MIT. See [`LICENSE`](LICENSE).
