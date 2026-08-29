@@ -14,7 +14,7 @@ The `hackathon/sibyl-ebi` branch contains a dedicated evaluated profile for the 
 
 The hackathon profile is designed around the deletion test: remove Sibyl and the cross-session memory required to reproduce the claimed behavior disappears.
 
-### Judge call map — write → read → influence → conflict → deletion
+### Judge call map — write → read → influence → conflict → consequence → deletion
 
 | Judge question | Critical path |
 |---|---|
@@ -26,6 +26,9 @@ The hackathon profile is designed around the deletion test: remove Sibyl and the
 | Where is the flagship relationship-memory policy? | `packages/scenarios/provider-continuity/src/index.ts`. |
 | Where is the Sibyl integration pressure suite? | `tests/integration/sibyl-memory-loop.test.ts`, `tests/integration/sibyl-provider-continuity.test.ts`, and `tests/integration/sibyl-competing-memories.test.ts`. |
 | How do I see process-boundary recall? | `npm run demo:sibyl:provider:seed`, terminate that process, then run `npm run demo:sibyl:provider:urgent` or `npm run demo:sibyl:provider:routine` against the same Sibyl DB/tenant. |
+| How does remembered experience become economic authority on Base? | `packages/base-settlement/src/index.ts` converts the Engram provider decision into `engram.base-settlement-intent/v1`; `tests/integration/base-settlement-authority.test.ts` proves urgent recipient and routine prepayment deltas. |
+| How is a claimed Base settlement checked against the decision? | `packages/base-settlement/src/evidence.ts` verifies RPC chain, optional expected payer, Circle USDC token, recipient, exact amount and success; `npm run base:settlement:verify` performs live receipt verification. |
+| Where is the Virtuals evidence boundary? | `packages/virtuals-acp/` normalizes ACP job history into Engram observations; `npm run virtuals:acp:ingest` is the live-ingest path. No live ACP job is claimed yet. |
 | How is load-bearing deletion tested? | `npm run test:sibyl:deletion`; it removes the configured Sibyl runtime and must report degradation with no fallback. |
 | How do I reproduce the complete evidence bundle? | After installing the pinned Sibyl dependency, run `npm run evidence:sibyl:capture`. It uses a fresh Sibyl DB/tenant, separate processes for the behavioral phases, and emits a commit/timestamp/version-stamped `manifest.json` with SHA-256 integrity metadata. |
 
@@ -65,11 +68,54 @@ Two prior requester-owned executions observe Atlas breaching an urgent `data_fet
 
 The claim is therefore not “Atlas has a low reputation.” It is: **this agent's attributable experience with Atlas changes the authority Atlas receives in the matching future context.**
 
+### Causal partner path — Virtuals → Sibyl → Base
+
+The evaluated partner architecture is deliberately relational rather than additive:
+
+```text
+Virtuals/provider execution evidence
+      ↓
+Engram observation
+      ↓
+Sibyl relationship memory
+      ↓
+fresh Engram recall + decision
+      ↓
+Base settlement authority
+```
+
+Virtuals supplies real external economic-execution evidence when a live ACP job is eventually exercised. Sibyl is the load-bearing memory substrate. Base is the economic consequence layer downstream of the remembered decision.
+
+For Base local conformance:
+
+- urgent memory changes the settlement recipient from Atlas to Beacon;
+- routine memory keeps Atlas but changes initial authorized prepayment from `4.000000 USDC` to `0.800000 USDC` and requires milestone verification;
+- serialized settlement intents are schema-validated and internally amount-consistent;
+- receipt verification fails on the wrong RPC chain, expected payer, token, recipient, amount, or reverted transaction.
+
+Run:
+
+```bash
+npm run test:base
+```
+
+For an already executed Base Sepolia transaction, verification is non-custodial and read-only:
+
+```bash
+ENGRAM_BASE_RPC_URL='<BASE_SEPOLIA_RPC>' \
+  npm run base:settlement:verify -- \
+  --intent <intent.json> \
+  --tx-hash <0x...> \
+  --payer <REQUESTER_WALLET>
+```
+
+**Evidence boundary:** Base and Virtuals are currently `LOCAL_CONFORMANCE_PASS / LIVE_UNVERIFIED`. No real Base Sepolia settlement and no authenticated ACP job are claimed by this pre-window branch. Local tests do not earn either partner multiplier.
+
 ### Prior Work declaration
 
 Engram's protocol, runtime, execution-memory semantics, CockroachDB production profile, SDK/API/MCP surfaces, causal influence model, and earlier scenarios existed before the Sibyl Labs Hackathon build window.
 
-The Sibyl EBI adapter, pressure harness and provider-continuity work currently present on this branch were also implemented before the official **September 1–10, 2026** build window. If retained for submission, they must be declared as prior work rather than represented as hackathon-window implementation. Final submission evidence must identify the work performed during the official window and regenerate the required fresh-session/deletion proof there.
+The Sibyl EBI adapter, pressure harness, provider-continuity work, Virtuals adapter and Base settlement-conformance path currently present on this branch were also implemented before the official **September 1–10, 2026** build window. If retained for submission, they must be declared as prior work rather than represented as hackathon-window implementation. Final submission evidence must identify the work performed during the official window and regenerate the required fresh-session/deletion/partner proof there.
 
 Current pre-window evidence is recorded under [`hackathon/sibyl/`](hackathon/sibyl/) and must not be confused with final submission evidence.
 
