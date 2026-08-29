@@ -1,8 +1,8 @@
 # Base settlement authority adapter
 
-Status: `IMPLEMENTED / LOCAL_CONFORMANCE_PENDING_CI / LIVE_BASE_UNVERIFIED`
+Status: `IMPLEMENTED / LOCAL_CONFORMANCE_PASS / LIVE_BASE_UNVERIFIED`
 
-This server-only package converts an Engram provider decision into a bounded Base Sepolia USDC settlement intent.
+This server-only package converts an Engram provider decision into a bounded Base Sepolia USDC settlement intent and independently verifies the resulting onchain receipt.
 
 It exists to make remembered experience economically consequential rather than merely observable.
 
@@ -13,6 +13,7 @@ prior execution evidence
   -> fresh Engram recall
   -> changed provider/terms
   -> Base settlement authority
+  -> Base receipt verification
 ```
 
 ## Current evaluated network
@@ -43,11 +44,45 @@ With applicable relationship memory, Atlas remains selected but prepayment autho
 
 Base therefore receives a **smaller authorized economic action** downstream of memory rather than a decorative transfer.
 
+## Local conformance
+
+Run:
+
+```bash
+npm run test:base
+```
+
+The local suite proves:
+
+- urgent relationship memory changes the settlement recipient Atlas -> Beacon;
+- routine relationship memory changes authorized prepay `4.000000 -> 0.800000 USDC`;
+- malformed provider addresses fail closed;
+- a receipt is accepted only when it is successful and contains the expected Circle USDC `Transfer`;
+- wrong recipient fails;
+- wrong amount fails;
+- wrong token contract fails;
+- reverted transaction fails.
+
+The Base tests are also included in canonical `npm run test:all` / `npm run check`. Canonical CI run `33264157362`, check job `99131095748`, passed on code head `266d3c38acc3c70a9533315679d4927108852ba3`.
+
+## Live verification
+
+Once an explicit wallet step has executed the reviewed settlement intent:
+
+```bash
+ENGRAM_BASE_RPC_URL='<BASE_SEPOLIA_RPC>' \
+  npm run base:settlement:verify -- \
+  --intent <intent.json> \
+  --tx-hash <0x...>
+```
+
+The verifier calls `eth_getTransactionReceipt` and emits Base evidence only if the observed USDC transfer matches the decision-derived recipient and atomic amount.
+
 ## Evidence boundary
 
-Current tests prove only deterministic derivation of settlement intent. They do not prove an executed Base transaction.
+`LOCAL_CONFORMANCE_PASS` proves the causal settlement model and fail-closed receipt verifier. It does **not** prove an executed Base transaction and does not earn the partner multiplier.
 
-`BASE-001` remains `UNVERIFIED` until a real Base Sepolia USDC transfer or equivalent Base-native action is executed and retained with:
+`BASE-001` remains `UNVERIFIED` until a real Base Sepolia action is executed and retained with:
 
 - transaction hash;
 - successful receipt;
