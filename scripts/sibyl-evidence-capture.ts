@@ -13,6 +13,12 @@ function commandOutput(command: string, args: string[]): string {
   return result.stdout.trim() || result.stderr.trim() || "unknown";
 }
 
+function commandStdoutAllowEmpty(command: string, args: string[]): string | null {
+  const result = spawnSync(command, args, { encoding: "utf8", cwd: process.cwd() });
+  if (result.status !== 0) return null;
+  return result.stdout.trim();
+}
+
 function gitHead(): string {
   return commandOutput("git", ["rev-parse", "HEAD"]);
 }
@@ -46,8 +52,9 @@ type StepReceipt = {
 const capturedAt = new Date();
 const head = gitHead();
 const stamp = safeStamp(capturedAt);
-const sourceTreeStatus = commandOutput("git", ["status", "--porcelain"]);
-const sourceTreeClean = sourceTreeStatus === "unknown" ? false : sourceTreeStatus.length === 0;
+const sourceTreeStatusResult = commandStdoutAllowEmpty("git", ["status", "--porcelain"]);
+const sourceTreeStatus = sourceTreeStatusResult ?? "unknown";
+const sourceTreeClean = sourceTreeStatusResult !== null && sourceTreeStatusResult.length === 0;
 const allowDirty = process.env.ENGRAM_EVIDENCE_ALLOW_DIRTY === "1";
 
 if (!sourceTreeClean && !allowDirty) {
