@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type {
   ProviderDecision,
   ProviderId,
@@ -10,6 +11,10 @@ export const BASE_SEPOLIA_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as
 export const USDC_DECIMALS = 6;
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+const AddressSchema = z.string().regex(ADDRESS_RE);
+const DecimalAtomicSchema = z.string().regex(/^\d+$/);
+const UsdcDecimalSchema = z.string().regex(/^\d+\.\d{6}$/);
+const ProviderIdSchema = z.enum(["atlas", "beacon"]);
 
 export type ProviderAddressBook = Record<ProviderId, string>;
 
@@ -47,6 +52,43 @@ export type BaseSettlementIntent = {
   counterfactual?: BaseSettlementCounterfactual;
 };
 
+export type SerializedBaseSettlementIntent = Omit<BaseSettlementIntent, "terms" | "counterfactual"> & {
+  terms: Omit<BaseSettlementTerms, "authorizedPrepayAtomic"> & { authorizedPrepayAtomic: string };
+  counterfactual?: Omit<BaseSettlementCounterfactual, "terms"> & {
+    terms: Omit<BaseSettlementTerms, "authorizedPrepayAtomic"> & { authorizedPrepayAtomic: string };
+  };
+};
+
+const SerializedTermsSchema = z.object({
+  maxSpendUsd: z.number().finite().nonnegative(),
+  prepayBps: z.number().int().min(0).max(10_000),
+  authorizedPrepayAtomic: DecimalAtomicSchema,
+  authorizedPrepayUsd: UsdcDecimalSchema,
+  requireMilestoneVerification: z.boolean(),
+}).strict();
+
+const SerializedIntentSchema = z.object({
+  schema: z.literal("engram.base-settlement-intent/v1"),
+  chainId: z.literal(BASE_SEPOLIA_CHAIN_ID),
+  network: z.literal(BASE_SEPOLIA_NETWORK),
+  token: z.literal("USDC"),
+  tokenAddress: z.literal(BASE_SEPOLIA_USDC),
+  providerId: ProviderIdSchema,
+  recipient: AddressSchema,
+  terms: SerializedTermsSchema,
+  memoryRefs: z.array(z.string().min(1)),
+  provenance: z.object({
+    executionId: z.string().min(1),
+    retrievalId: z.string().min(1).optional(),
+    decisionId: z.string().min(1).optional(),
+  }).strict(),
+  counterfactual: z.object({
+    providerId: ProviderIdSchema,
+    recipient: AddressSchema,
+    terms: SerializedTermsSchema,
+  }).strict().optional(),
+}).strict();
+
 function assertAddress(address: string, label: string): string {
   if (!ADDRESS_RE.test(address)) throw new Error(`INVALID_${label.toUpperCase()}_ADDRESS`);
   return address;
@@ -80,6 +122,55 @@ function settlementTerms(terms: ProviderTerms): BaseSettlementTerms {
     authorizedPrepayAtomic,
     authorizedPrepayUsd: usdcAtomicToDecimal(authorizedPrepayAtomic),
     requireMilestoneVerification: terms.requireMilestoneVerification,
+  };
+}
+
+function assertSerializedTermsConsistent(terms: SerializedBaseSettlementIntent["terms"]): void {
+  const expectedMaxSpendAtomic = usdToUsdcAtomic(terms.maxSpendUsd);
+  const expectedPrepayAtomic = (expectedMaxSpendAtomic * BigInt(terms.prepayBps)) / 10_000n;
+  if (BigInt(terms.authorizedPrepayAtomic) !== expectedPrepayAtomic) {
+    throw new Error("BASE_SETTLEMENT_INTENT_AMOUNT_INCONSISTENT");
+  }
+  if (terms.authorizedPrepayUsd !== usdcAtomicToDecimal(expectedPrepayAtomic)) {
+    throw new Error("BASE_SETTLEMENT_INTENT_DECIMAL_INCONSISTENT");
+  }
+}
+
+export function serializeBaseSettlementIntent(intent: BaseSettlementIntent): SerializedBaseSettlementIntent {
+  return {
+    ...intent,
+    terms: {
+      ...intent.terms,
+      authorizedPrepayAtomic: intent.terms.authorizedPrepayAtomic.toString(),
+    },
+    counterfactual: intent.counterfactual ? {
+      ...intent.counterfactual,
+      terms: {
+        ...intent.counterfactual.terms,
+        authorizedPrepayAtomic: intent.counterfactual.terms.authorizedPrepayAtomic.toString(),
+      },
+    } : undefined,
+  };
+}
+
+export function parseSerializedBaseSettlementIntent(input: unknown): BaseSettlementIntent {
+  const parsed = SerializedIntentSchema.parse(input) as SerializedBaseSettlementIntent;
+  assertSerializedTermsConsistent(parsed.terms);
+  if (parsed.counterfactual) assertSerializedTermsConsistent(parsed.counterfactual.terms);
+
+  return {
+    ...parsed,
+    terms: {
+      ...parsed.terms,
+      authorizedPrepayAtomic: BigInt(parsed.terms.authorizedPrepayAtomic),
+    },
+    counterfactual: parsed.counterfactual ? {
+      ...parsed.counterfactual,
+      terms: {
+        ...parsed.counterfactual.terms,
+        authorizedPrepayAtomic: BigInt(parsed.counterfactual.terms.authorizedPrepayAtomic),
+      },
+    } : undefined,
   };
 }
 
