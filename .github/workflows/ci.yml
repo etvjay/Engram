@@ -47,3 +47,9 @@ jobs:
         run: npm run demo:sibyl:provider:routine
       - name: Remove Sibyl runtime and prove fail-closed degradation
         run: npm run test:sibyl:deletion
+      - name: Smoke exact evidence capture path
+        env:
+          ENGRAM_EVIDENCE_DIR: /tmp/engram-sibyl-evidence-smoke
+        run: npm run evidence:sibyl:capture
+      - name: Verify evidence manifest exists
+        run: test -s /tmp/engram-sibyl-evidence-smoke/manifest.json
