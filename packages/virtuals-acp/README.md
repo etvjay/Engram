@@ -1,6 +1,6 @@
 # Virtuals ACP evidence adapter
 
-Status: `IMPLEMENTED / LOCAL_CONFORMANCE_PASS_PENDING_CI / LIVE_ACP_UNVERIFIED`
+Status: `IMPLEMENTED / LOCAL_CONFORMANCE_PASS / LIVE_ACP_UNVERIFIED`
 
 This server-only package normalizes machine-readable output from the current Virtuals `@virtuals-protocol/acp-cli` into Engram execution evidence.
 
@@ -82,10 +82,12 @@ Test:
 tests/integration/virtuals-acp-evidence.test.ts
 ```
 
+Current conformance state is `LOCAL_CONFORMANCE_PASS`: the adapter suite is included by the repository's canonical `npm run test:all` / `npm run check` path and has passed in CI. This is code-contract evidence only; it is not evidence of a real ACP interaction.
+
 ## Evidence boundary
 - ACP job history is treated as `OBSERVED` external-system evidence only when it comes from the live ACP command. A repository fixture is `SIMULATED_PASS`/local conformance evidence, never live partner evidence.
 - SLA breach classification requires caller-supplied expected latency plus observed start/completion timestamps; the adapter does not invent SLA expectations from provider reputation.
-- `rejected` and `expired` jobs are preserved as distinct failure classes.
+- `rejected` and `expired` jobs are preserved as distinct failure classes and take causal precedence over a derived latency classification.
 - Raw parsed history is retained in the normalized evidence object for audit/debugging, but the Engram observation records only bounded fields plus a provenance command reference.
 
 ## Live-proof gate
