@@ -18,7 +18,7 @@
     "test:integration": "vitest run tests/integration/cockroach-memory-loop.test.ts",
     "test:sibyl": "ENGRAM_SIBYL_TEST_REQUIRED=1 vitest run tests/integration/sibyl-memory-loop.test.ts tests/integration/sibyl-provider-continuity.test.ts tests/integration/sibyl-competing-memories.test.ts",
     "test:virtuals": "vitest run tests/integration/virtuals-acp-evidence.test.ts",
-    "test:base": "vitest run tests/integration/base-settlement-authority.test.ts",
+    "test:base": "vitest run tests/integration/base-settlement-authority.test.ts tests/integration/base-settlement-receipt.test.ts",
     "demo:sibyl:seed": "tsx scripts/sibyl-demo.ts seed",
     "demo:sibyl:recall": "tsx scripts/sibyl-demo.ts recall",
     "demo:sibyl:no-memory-control": "tsx scripts/sibyl-demo.ts control",
@@ -28,6 +28,7 @@
     "demo:sibyl:provider:routine": "tsx scripts/sibyl-provider-demo.ts routine",
     "evidence:sibyl:capture": "tsx scripts/sibyl-evidence-capture.ts",
     "virtuals:acp:ingest": "tsx scripts/virtuals-acp-ingest.ts",
+    "base:settlement:verify": "tsx scripts/base-settlement-verify.ts",
     "test:all": "vitest run",
     "test:watch": "vitest",
     "check": "npm run build && npm run test:all"
