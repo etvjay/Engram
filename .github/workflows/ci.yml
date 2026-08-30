@@ -64,5 +64,15 @@ jobs:
         env:
           ENGRAM_EVIDENCE_DIR: /tmp/engram-sibyl-evidence-smoke
         run: npm run evidence:sibyl:capture
-      - name: Verify evidence manifest exists
-        run: test -s /tmp/engram-sibyl-evidence-smoke/manifest.json
+      - name: Verify evidence manifest retains Base authority artifact
+        run: >-
+          npx tsx -e "import { readFileSync, existsSync } from 'node:fs';
+          const p='/tmp/engram-sibyl-evidence-smoke/manifest.json';
+          if (!existsSync(p)) throw new Error('manifest missing');
+          const m=JSON.parse(readFileSync(p,'utf8'));
+          if (m.schema !== 'engram.sibyl-evidence-capture/v3') throw new Error('unexpected manifest schema');
+          if (m.status !== 'LOCAL_PASS') throw new Error('capture did not pass');
+          if (!m.baseSettlementIntent?.sha256) throw new Error('base intent digest missing');
+          if (m.baseSettlementIntent?.terms?.authorizedPrepayAtomic !== '800000') throw new Error('base intent amount mismatch');
+          if (!m.baseSettlementIntent?.provenance?.retrievalId) throw new Error('base retrieval provenance missing');
+          if (!existsSync('/tmp/engram-sibyl-evidence-smoke/base-routine-intent.json')) throw new Error('base intent artifact missing');"
